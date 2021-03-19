@@ -142,22 +142,22 @@ INIT:
                                             * Procedo a inicializar punteros a principio y final de pila, de momento esta vacia
                                             * asi que principio = final
         MOVE.L          A1,D1               
-        ADD.L           $8,D1               * D1 <-A1+8  
+        ADD.L           #8,D1               * D1 <-A1+8  
         MOVE.L          D1,(A1)             * M(A1) <-A1+8
         MOVE.L          D1,$2(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
 
         MOVE.L          A2,D1               
-        ADD.L           $8,D1              
+        ADD.L           #8,D1              
         MOVE.L          D1,(A2)            
         MOVE.L          D1,$2(A2)    
 
         MOVE.L          A3,D1               
-        ADD.L           $8,D1              
+        ADD.L           #8,D1              
         MOVE.L          D1,(A3)            
         MOVE.L          D1,$2(A3)    
         
         MOVE.L          A4,D1               
-        ADD.L           $8,D1              
+        ADD.L           #8,D1              
         MOVE.L          D1,(A4)            
         MOVE.L          D1,$2(A4)  
         RTS
@@ -191,19 +191,18 @@ LFIND:  MOVE.L          (A1),D1            * D1 <- M(BUS) = dir_principio
         BEQ             EMPTY
         MOVE.L          D1,A2              * A2 <- dir_principio
         MOVE.B          (A2),D0            * D0 <- M(dir_principio) = char
-        MOVE.B          0,(A2)+           * M(dir_principio) <- 0 ; dir_principio+=1
-        ADD.L           2008,A1           * A1+=2008B == fin de pila
-        CMP.L           A1,A2              * si dir_principio == fin de pila => dir_principio == M(dir_bus+4)
+        MOVE.B          #0,(A2)+           * M(dir_principio) <- 0 ; dir_principio+=1
+        MOVE.L          A1,D1
+        ADD.L           #2008,D1           * A1+=2008B == fin de pila
+        CMP.L           D1,A2              * si dir_principio == fin de pila => dir_principio == M(dir_bus+4)
         BNE             LMOVE
-        SUB.L           2008,A1           * A1  <- dir bus
         MOVE.L          A1,D4              * d4 <- A1
-        ADD.L           8,D4              * D4 <- primer_espacio_pila
+        ADD.L           #8,D4               * D4 <- primer_espacio_pila
         MOVE.L          D4,(A1)            * dir_principio = primer espacio_pila
         BRA             ENDL
-LMOVE:  SUB.L           2008,A1           * A1 <- dir bus 
-        MOVE.L          A2,(A1)            * update dir_principio
+LMOVE:  MOVE.L          A2,(A1)            * update dir_principio
         BRA             ENDL
-EMPTY:  MOVE.L          $FFFFFFFF,D0
+EMPTY:  MOVE.L          #$FFFFFFFF,D0
 ENDL:   RTS
 **************************** FIN LEECAR ************************************************************
 
