@@ -34,12 +34,11 @@ FLAGR   EQU     0	      * Flag de recepci�n
 
 * Bufferes internos
 *********************************
-ORG $1000
 
-BAR     DS.B    $7D0
-BAT     DS.B    $7D0
-BBR     DS.B    $7D0
-BBT     DS.B    $7D0
+BAR:     DS.B    2008
+BAT:     DS.B    2008
+BBR:     DS.B    2008
+BBT:     DS.B    2008
 
 
 * Diseño y codificacion de casos de pruebas
@@ -70,7 +69,7 @@ INICIO: MOVE.L          #BUS_ERROR,8        * Bus error handler
         MOVE.W          #$2000,SR           * Permite interrupciones
 BUCPR:  MOVE.W          #TAMBS,PARTAM       * Inicializa parámetro de tamaño
         MOVE.L          #BUFFER,PARDIR      * Parámetro BUFFER = comienzo del buffer
-        MOVE.W          PARTAM,-(A7)        * Tamaño de bloque
+OTRAL:  MOVE.W          PARTAM,-(A7)        * Tamaño de bloque
         MOVE.W          #DESA,-(A7)         * Puerto A
         MOVE.L          PARDIR,-(A7)        * Dirección de lectura
 ESPL:   BSR             SCAN
@@ -115,11 +114,13 @@ PRIV_VIOLT:             BREAK               * Privilege violation handler
 * Casos de pruebas
 *********************************************************************************************
 PLEE:   BSR             INIT
-        MOVE.B          #$77,BAR
-        MOVE.B          #$78,BAT
-        MOVE.B          #$76,BBR
-        MOVE.B          #$79,BBT
-        MOVE.B          #%00000010,D0               * Descriptor param
+        LEA            BAR,A1
+        LEA            $2(A1),A5          * A5 <- dir fin pila 
+        MOVE.B          #$83,(A5)          * Pongo dato al final de pila
+        MOVE.L          A5,D1              * D1 <- dir fin de pila
+        ADD.L           #1,D1              * dir_fin<-dir_fin+1B
+        MOVE.L          D1,(A5)            * actualizo dir_finin
+        MOVE.B          #0,D0               * Descriptor param
         BSR             LEECAR
         BREAK
 
@@ -134,6 +135,31 @@ INIT:
         MOVE.B          #%11001100,CSRA     * Velocidad = 38400 bps.
         MOVE.B          #%00000000,ACR      * Velocidad = 38400 bps.
         MOVE.B          #%00000101,CRA      * Transmision y recepcion activados.
+        LEA            BAR,A1              * Cargo dirs de buffers
+        LEA            BAT,A2
+        LEA            BBR,A3
+        LEA            BBT,A4
+                                            * Procedo a inicializar punteros a principio y final de pila, de momento esta vacia
+                                            * asi que principio = final
+        MOVE.L          A1,D1               
+        ADD.L           $8,D1               * D1 <-A1+8  
+        MOVE.L          D1,(A1)             * M(A1) <-A1+8
+        MOVE.L          D1,$2(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
+
+        MOVE.L          A2,D1               
+        ADD.L           $8,D1              
+        MOVE.L          D1,(A2)            
+        MOVE.L          D1,$2(A2)    
+
+        MOVE.L          A3,D1               
+        ADD.L           $8,D1              
+        MOVE.L          D1,(A3)            
+        MOVE.L          D1,$2(A3)    
+        
+        MOVE.L          A4,D1               
+        ADD.L           $8,D1              
+        MOVE.L          D1,(A4)            
+        MOVE.L          D1,$2(A4)  
         RTS
 **************************** FIN INIT *********************************************************
 
@@ -146,28 +172,38 @@ PRINT:  RTS
 
 
 **************************** LEECAR ************************************************************
-LEECAR: MOVE.B          #2000, D3
-        BTST            #1,D0
+LEECAR: BTST            #0,D0
         BEQ             LEEA
-        BTST            #2,D0
+        BTST            #1,D0
         BEQ             LLEEB
-        MOVE.L          BBT, A2
+        LEA             BBT,A1             * A1 <- dir bus
         BRA             LFIND
-LEEA:   BTST            #2,D0
+LEEA:   BTST            #1,D0
         BEQ             LLEEA
-        MOVE.L          BAT, A2
+        LEA             BAT,A1
         BRA             LFIND
-LLEEA:  MOVE.L          BAR, A2
+LLEEA:  LEA             BAR,A1
         BRA             LFIND
-LLEEB:  MOVE.L          BBR, A2  
-LFIND:  SUB.B           D3, #1
-        CMP             #0, D3
-        BEQ             LEMPTY
-        CMP             #0,(A2)+
-        BEQ             LFIND
-        MOVE.B          -(A2), D0
+LLEEB:  LEA             BBR,A1 
+LFIND:  MOVE.L          (A1),D1            * D1 <- M(BUS) = dir_principio
+        MOVE.L          $2(A1),D2          * D2 <- M(BUS+2) = dir final
+        CMP.L           D1,D2              * si D1==D2 => bus vacio
+        BEQ             EMPTY
+        MOVE.L          D1,A2              * A2 <- dir_principio
+        MOVE.B          (A2),D0            * D0 <- M(dir_principio) = char
+        MOVE.B          0,(A2)+           * M(dir_principio) <- 0 ; dir_principio+=1
+        ADD.L           2008,A1           * A1+=2008B == fin de pila
+        CMP.L           A1,A2              * si dir_principio == fin de pila => dir_principio == M(dir_bus+4)
+        BNE             LMOVE
+        SUB.L           2008,A1           * A1  <- dir bus
+        MOVE.L          A1,D4              * d4 <- A1
+        ADD.L           8,D4              * D4 <- primer_espacio_pila
+        MOVE.L          D4,(A1)            * dir_principio = primer espacio_pila
         BRA             ENDL
-LEMPTY: MOVE            #$FFFFFFFF, D0
+LMOVE:  SUB.L           2008,A1           * A1 <- dir bus 
+        MOVE.L          A2,(A1)            * update dir_principio
+        BRA             ENDL
+EMPTY:  MOVE.L          $FFFFFFFF,D0
 ENDL:   RTS
 **************************** FIN LEECAR ************************************************************
 
