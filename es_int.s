@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PLEE            * PC
+        DC.L    PLEE1            * PC
 
         ORG     $400
 
@@ -52,10 +52,6 @@ DESA:   EQU     0            * Descriptor lı́nea A
 DESB:   EQU     1            * Descriptor lı́nea B
 TAMBS:  EQU     30           * Tamaño de bloque para SCAN
 TAMBP:  EQU     7            * Tamaño de bloque para PRINT
-
-
-
-
 
 
 
@@ -114,13 +110,25 @@ PRIV_VIOLT:             BREAK               * Privilege violation handler
 * Casos de pruebas
 *********************************************************************************************
 PLEE:   BSR             INIT
-        LEA            BAR,A1
-        LEA            $2(A1),A5          * A5 <- dir fin pila 
-        MOVE.B          #$83,(A5)          * Pongo dato al final de pila
-        MOVE.L          A5,D1              * D1 <- dir fin de pila
+        LEA             BAR,A1
+        LEA             $4(A1),A2          * A5 <- dir fin pila
+        MOVE.L          (A2),A3
+        MOVE.B          #$83,(A3)          * Pongo dato al final de pila
+        MOVE.L          A3,D1              * D1 <- dir fin de pila
         ADD.L           #1,D1              * dir_fin<-dir_fin+1B
-        MOVE.L          D1,(A5)            * actualizo dir_finin
-        MOVE.B          #0,D0               * Descriptor param
+        MOVE.L          D1,(A2)            * actualizo dir_finin
+        MOVE.B          #0,D0              * Descriptor param
+        BSR             LEECAR
+        BREAK
+
+PLEE1:   BSR            INIT
+        LEA             BAR,A1
+        MOVE.L          A1,D2
+        ADD.L           #2007,D2           *D2  <- ultima dir de pila
+        MOVE.L          D2,(A1)
+        MOVE.L          D2,A1
+        MOVE.B          #$79,(A1)
+        MOVE.B          #0,D0              * Descriptor param
         BSR             LEECAR
         BREAK
 
@@ -144,22 +152,22 @@ INIT:
         MOVE.L          A1,D1               
         ADD.L           #8,D1               * D1 <-A1+8  
         MOVE.L          D1,(A1)             * M(A1) <-A1+8
-        MOVE.L          D1,$2(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
+        MOVE.L          D1,$4(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
 
         MOVE.L          A2,D1               
         ADD.L           #8,D1              
         MOVE.L          D1,(A2)            
-        MOVE.L          D1,$2(A2)    
+        MOVE.L          D1,$4(A2)    
 
         MOVE.L          A3,D1               
         ADD.L           #8,D1              
         MOVE.L          D1,(A3)            
-        MOVE.L          D1,$2(A3)    
+        MOVE.L          D1,$4(A3)    
         
         MOVE.L          A4,D1               
         ADD.L           #8,D1              
         MOVE.L          D1,(A4)            
-        MOVE.L          D1,$2(A4)  
+        MOVE.L          D1,$4(A4)  
         RTS
 **************************** FIN INIT *********************************************************
 
@@ -186,7 +194,7 @@ LLEEA:  LEA             BAR,A1
         BRA             LFIND
 LLEEB:  LEA             BBR,A1 
 LFIND:  MOVE.L          (A1),D1            * D1 <- M(BUS) = dir_principio
-        MOVE.L          $2(A1),D2          * D2 <- M(BUS+2) = dir final
+        MOVE.L          $4(A1),D2          * D2 <- M(BUS+2) = dir final
         CMP.L           D1,D2              * si D1==D2 => bus vacio
         BEQ             EMPTY
         MOVE.L          D1,A2              * A2 <- dir_principio
