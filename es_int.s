@@ -217,7 +217,40 @@ ENDL:   RTS
 
 
 **************************** ESCCAR ************************************************************
-ESCCAR: RTS
+ESCCAR: BTST            #0,D0
+        BEQ             ESCA
+        BTST            #1,D0
+        BEQ             ESCB
+        LEA             BBT,A1             * A1 <- dir_bus
+        BRA             EFIND
+ESCA:   BTST            #1,D0
+        BEQ             ESCAR
+        LEA             BAT,A1
+        BRA             EFIND
+ESCAR:  LEA             BAR,A1
+        BRA             EFIND
+ESCB:   LEA             BBR,A1
+EFIND:	MOVE.L          (A1),D2            * D2 <- M(BUS) = dir_principio
+        MOVE.L          $4(A1),D3          * D3 <- M(BUS+2) = dir_final
+		CMP.L 			D2,D3			   * si D2==D3 => pila vacía o llena	
+		BNE				NOFULL
+		CMP.B 			#0,(D2)			   * si M(D2)!=0 => pila llena
+		BNE				FULL
+NOFULL: MOVE.L 			D3,A2			   * A2 <- dir_final
+		MOVE.B 			D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
+		MOVE.B 			#0,D0			   * D0 <- 0
+		MOVE.L 			A1,D2			   * D2 <- dir_principio
+		ADD.L 			#2008,D2		   * D2 <- D2+2008 == fin_pila
+		CMP.L 			D2,A2			   * si dir_final == fin_pila => dir_principio == M(dir_bus+4)
+		BNE 			EMOVE
+		MOVE.L          A1,D4              * D4 <- A1
+        ADD.L           #8,D4              * D4 <- primer_espacio_pila
+        MOVE.L          D4,$4(A1)          * dir_final = primer espacio_pila
+        BRA             ENDL		
+EMOVE: 	MOVE.L 			A2,$4(A1)		   * actualizo dir_final
+		BRA 			ENDE
+FULL:	MOVE.L			#$FFFFFFFF,D0
+ENDE:	RTS
 **************************** FIN ESCCAR ************************************************************
 
 
