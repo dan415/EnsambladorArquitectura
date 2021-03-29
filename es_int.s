@@ -131,6 +131,23 @@ PLEE1:   BSR            INIT
         MOVE.B          #0,D0              * Descriptor param
         BSR             LEECAR
         BREAK
+		
+PESC: 	BSR 			INIT
+		LEA 			BBR,A1
+		MOVE.L 			A1,D1
+		ADD.L 			#8,D1
+		MOVE.L 			D1,(A1)	
+		MOVE.L			D1,$4(A1)
+		MOVE.L 			$4(A1),A2
+		MOVE.B 			#$43,(A2)+
+		MOVE.B 			#$4F,(A2)+
+		MOVE.B 			#$53,(A2)+
+		MOVE.L 			A2,$4(A1)
+		MOVE.B 			#$41,D1
+		MOVE.B 			#1,D0
+		BSR 			ESCCAR
+		BREAK
+		
 
 
 
