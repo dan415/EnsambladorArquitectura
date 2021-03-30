@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PESC2            * PC
+        DC.L    PLEE1            * PC
 
         ORG     $400
 
@@ -26,7 +26,6 @@ TBB     EQU     $effc17       * buffer transmision B (escritura)
 RBB	EQU	$effc17       * buffer recepcion B (lectura)
 SRB     EQU     $effc13       * de estado B (lectura)
 CSRB	EQU	$effc13       * de seleccion de reloj B (escritura)
-
 CR	EQU	$0D	      * Carriage Return
 LF	EQU	$0A	      * Line Feed
 FLAGT	EQU	2	      * Flag de transmisi�n
@@ -111,7 +110,7 @@ PRIV_VIOLT:             BREAK               * Privilege violation handler
 *********************************************************************************************
 PLEE:   BSR             INIT
         LEA             BAR,A1
-        LEA             $4(A1),A2          * A5 <- dir fin pila
+        LEA             $4(A1),A2          * A2 <- dir fin pila
         MOVE.L          (A2),A3
         MOVE.B          #$83,(A3)          * Pongo dato al final de pila
         MOVE.L          A3,D1              * D1 <- dir fin de pila
@@ -121,7 +120,7 @@ PLEE:   BSR             INIT
         BSR             LEECAR
         BREAK
 
-PLEE1:   BSR            INIT
+PLEE1:  BSR            INIT
         LEA             BAR,A1
         MOVE.L          A1,D2
         ADD.L           #2007,D2           *D2  <- ultima dir de pila
@@ -131,35 +130,36 @@ PLEE1:   BSR            INIT
         MOVE.B          #0,D0              * Descriptor param
         BSR             LEECAR
         BREAK
+
+PLEE2:  BSR             INIT               * leo pila vacia
+        MOVE.B          #0,D0              * Descriptor param
+        BSR             LEECAR
+        BREAK
 		
-PESC: 	BSR 			INIT
-		LEA 			BBR,A1
-		MOVE.L 			A1,D1
-		ADD.L 			#8,D1
-		MOVE.L 			D1,(A1)	
-		MOVE.L			D1,$4(A1)
-		MOVE.L 			D1,A2
-		MOVE.B 			#$43,(A2)+
-		MOVE.B 			#$4F,(A2)+
-		MOVE.B 			#$53,(A2)+
-		MOVE.L 			A2,$4(A1)
-		MOVE.B 			#$41,D1
-		MOVE.B 			#1,D0
-		BSR 			ESCCAR
-		BREAK
+PESC: 	BSR 		INIT
+        LEA 		BBR,A1
+        MOVE.L 		A1,D1
+        ADD.L 		#8,D1
+        MOVE.L 		D1,A2
+        MOVE.B 		#$43,(A2)+
+        MOVE.B 		#$4F,(A2)+
+        MOVE.B 		#$53,(A2)+
+        MOVE.L 		A2,$4(A1)
+        MOVE.B 		#$41,D1
+        MOVE.B 		#1,D0
+        BSR 		ESCCAR
+        BREAK
 		
-PESC2: 	BSR 			INIT
-		LEA 			BBR,A1
-		MOVE.L 			A1,D1
-		ADD.L 			#8,D1
-		MOVE.L 			D1,(A1)	
-		MOVE.L			D1,$4(A1)
-		MOVE.L 			D1,A2
-		MOVE.B 			#$43,(A2)
-		MOVE.B 			#$41,D1
-		MOVE.B 			#1,D0
-		BSR 			ESCCAR
-		BREAK
+PESC2: 	BSR 		INIT            * escribo en pila llena (simulado)
+        LEA 		BBR,A1
+        MOVE.L 		A1,D1
+        ADD.L 		#8,D1
+        MOVE.L 		D1,A2
+        MOVE.B 		#$43,(A2)
+        MOVE.B 		#$41,D1
+        MOVE.B 		#1,D0
+        BSR             ESCCAR
+        BREAK
 		
 
 
@@ -167,12 +167,12 @@ PESC2: 	BSR 			INIT
 
 **************************** INIT *************************************************************
 INIT:
-        MOVE.B          #%00010000,CRA      * Reinicia el puntero MR1
-        MOVE.B          #%00000011,MR1A     * 8 bits por caracter.
-        MOVE.B          #%00000000,MR2A     * Eco desactivado.
-        MOVE.B          #%11001100,CSRA     * Velocidad = 38400 bps.
-        MOVE.B          #%00000000,ACR      * Velocidad = 38400 bps.
-        MOVE.B          #%00000101,CRA      * Transmision y recepcion activados.
+        MOVE.B         #%00010000,CRA      * Reinicia el puntero MR1
+        MOVE.B         #%00000011,MR1A     * 8 bits por caracter.
+        MOVE.B         #%00000000,MR2A     * Eco desactivado.
+        MOVE.B         #%11001100,CSRA     * Velocidad = 38400 bps.
+        MOVE.B         #%00000000,ACR      * Velocidad = 38400 bps.
+        MOVE.B         #%00000101,CRA      * Transmision y recepcion activados.
         LEA            BAR,A1              * Cargo dirs de buffers
         LEA            BAT,A2
         LEA            BBR,A3
@@ -223,16 +223,18 @@ LEEA:   BTST            #1,D0
 LLEEA:  LEA             BAR,A1
         BRA             LFIND
 LLEEB:  LEA             BBR,A1 
-LFIND:  MOVE.L          (A1),D1            * D1 <- M(BUS) = dir_principio
-        MOVE.L          $4(A1),D2          * D2 <- M(BUS+2) = dir final
-        CMP.L           D1,D2              * si D1==D2 => bus vacio
+LFIND:  MOVE.L          (A1),A2            * A2 <- M(BUFFER) = dir_principio
+        MOVE.L          $4(A1),A3          * A3 <- M(BUFFER+4) = dir final
+        CMP.L           A2,A3              * si A2==A3 => buffer vacio
+        BNE             LGET               * si dir comienzo != dir final =>  no esta vacía
+        MOVE.B          (A2),D3            * muevo primer char en dir comienzo
+        CMP.B           #0,D3              * si el primer char de la dir de comienzo = 0 => buffer vacio
         BEQ             EMPTY
-        MOVE.L          D1,A2              * A2 <- dir_principio
-        MOVE.B          (A2),D0            * D0 <- M(dir_principio) = char
+LGET:   MOVE.B          (A2),D0            * D0 <- M(dir_principio) = char
         MOVE.B          #0,(A2)+           * M(dir_principio) <- 0 ; dir_principio+=1
         MOVE.L          A1,D1
         ADD.L           #2008,D1           * A1+=2008B == fin de pila
-        CMP.L           D1,A2              * si dir_principio == fin de pila => dir_principio == M(dir_bus+4)
+        CMP.L           D1,A2              * si dir_principio == fin de pila => dir_principio == dir buffer+8
         BNE             LMOVE
         MOVE.L          A1,D4              * d4 <- A1
         ADD.L           #8,D4               * D4 <- primer_espacio_pila
@@ -262,24 +264,24 @@ ESCAR:  LEA             BAR,A1
 ESCB:   LEA             BBR,A1
 EFIND:	MOVE.L          (A1),A3            * D2 <- M(BUS) = dir_principio
         MOVE.L          $4(A1),A4          * D3 <- M(BUS+2) = dir_final
-		CMP.L 			A3,A4			   * si A3==A4 => pila vacía o llena	
-		BNE				NOFULL
-		MOVE.L 			(A3),D3 
-		CMP.L    		#0,D3			   * si M(D2)!=0 => pila llena
-		BNE				FULL
+        CMP.L 			A3,A4			   * si A3==A4 => pila vacía o llena	
+        BNE				NOFULL
+        MOVE.L 			(A3),D3 
+        CMP.L    		#0,D3			   * si M(D2)!=0 => pila llena
+        BNE				FULL
 NOFULL: MOVE.L 			D3,A2			   * A2 <- dir_final
-		MOVE.B 			D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
-		MOVE.B 			#0,D0			   * D0 <- 0
-		MOVE.L 			A1,D2			   * D2 <- dir_principio
-		ADD.L 			#2008,D2		   * D2 <- D2+2008 == fin_pila
-		CMP.L 			D2,A2			   * si dir_final == fin_pila => dir_principio == M(dir_bus+4)
-		BNE 			EMOVE
-		MOVE.L          A1,D4              * D4 <- A1
+        MOVE.B 			D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
+        MOVE.B 			#0,D0			   * D0 <- 0
+        MOVE.L 			A1,D2			   * D2 <- dir_principio
+        ADD.L 			#2008,D2		   * D2 <- D2+2008 == fin_pila
+        CMP.L 			D2,A2			   * si dir_final == fin_pila => dir_principio == M(dir_bus+4)
+        BNE 			EMOVE
+        MOVE.L          A1,D4              * D4 <- A1
         ADD.L           #8,D4              * D4 <- primer_espacio_pila
         MOVE.L          D4,$4(A1)          * dir_final = primer espacio_pila
         BRA             ENDL		
 EMOVE: 	MOVE.L 			A2,$4(A1)		   * actualizo dir_final
-		BRA 			ENDE
+        BRA 			ENDE
 FULL:	MOVE.L			#$FFFFFFFF,D0
 ENDE:	RTS
 **************************** FIN ESCCAR ************************************************************
