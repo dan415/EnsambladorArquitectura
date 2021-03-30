@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PLEE1            * PC
+        DC.L    PESC2            * PC
 
         ORG     $400
 
@@ -138,11 +138,24 @@ PESC: 	BSR 			INIT
 		ADD.L 			#8,D1
 		MOVE.L 			D1,(A1)	
 		MOVE.L			D1,$4(A1)
-		MOVE.L 			$4(A1),A2
+		MOVE.L 			D1,A2
 		MOVE.B 			#$43,(A2)+
 		MOVE.B 			#$4F,(A2)+
 		MOVE.B 			#$53,(A2)+
 		MOVE.L 			A2,$4(A1)
+		MOVE.B 			#$41,D1
+		MOVE.B 			#1,D0
+		BSR 			ESCCAR
+		BREAK
+		
+PESC2: 	BSR 			INIT
+		LEA 			BBR,A1
+		MOVE.L 			A1,D1
+		ADD.L 			#8,D1
+		MOVE.L 			D1,(A1)	
+		MOVE.L			D1,$4(A1)
+		MOVE.L 			D1,A2
+		MOVE.B 			#$43,(A2)
 		MOVE.B 			#$41,D1
 		MOVE.B 			#1,D0
 		BSR 			ESCCAR
@@ -247,11 +260,12 @@ ESCA:   BTST            #1,D0
 ESCAR:  LEA             BAR,A1
         BRA             EFIND
 ESCB:   LEA             BBR,A1
-EFIND:	MOVE.L          (A1),D2            * D2 <- M(BUS) = dir_principio
-        MOVE.L          $4(A1),D3          * D3 <- M(BUS+2) = dir_final
-		CMP.L 			D2,D3			   * si D2==D3 => pila vacía o llena	
+EFIND:	MOVE.L          (A1),A3            * D2 <- M(BUS) = dir_principio
+        MOVE.L          $4(A1),A4          * D3 <- M(BUS+2) = dir_final
+		CMP.L 			A3,A4			   * si A3==A4 => pila vacía o llena	
 		BNE				NOFULL
-		CMP.B 			#0,(D2)			   * si M(D2)!=0 => pila llena
+		MOVE.L 			(A3),D3 
+		CMP.L    		#0,D3			   * si M(D2)!=0 => pila llena
 		BNE				FULL
 NOFULL: MOVE.L 			D3,A2			   * A2 <- dir_final
 		MOVE.B 			D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
