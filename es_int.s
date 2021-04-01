@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PLEE1            * PC
+        DC.L    PESC            * PC
 
         ORG     $400
 
@@ -269,7 +269,7 @@ EFIND:	MOVE.L          (A1),A3            * D2 <- M(BUS) = dir_principio
         MOVE.L 			(A3),D3 
         CMP.L    		#0,D3			   * si M(D2)!=0 => pila llena
         BNE				FULL
-NOFULL: MOVE.L 			D3,A2			   * A2 <- dir_final
+NOFULL: MOVE.L 			A4,A2			   * A2 <- dir_final
         MOVE.B 			D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
         MOVE.B 			#0,D0			   * D0 <- 0
         MOVE.L 			A1,D2			   * D2 <- dir_principio
