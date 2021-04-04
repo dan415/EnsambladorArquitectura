@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PESC            * PC
+        DC.L    HITO2            * PC
 
         ORG     $400
 
@@ -157,32 +157,53 @@ PESC2: 	BSR 		INIT            * escribo en pila llena (simulado)
         MOVE.L 		D1,A2
         MOVE.B 		#$43,(A2)
         MOVE.B 		#$41,D1
-        MOVE.B 		#1,D0
+        MOVE.L 		#1,D0
         BSR             ESCCAR
         BREAK
-		
 
-HITO1:  BSR 		INIT
-        LEA             BBR,A6
-        AND.B           #0,D6
-EBUC:   CMP.B           #2001,D6
-        BEQ             FEHITO
-        MOVE.B 		#$56,D1
-        MOVE.B 		#1,D0
+
+HITO1:  BSR             INIT     
+        LEA             BBR,A5
+        MOVE.W          #0,D5
+EBUC:   CMP.W           #2001,D5
+        BEQ             NOWLEE
+        MOVE.B          #$13,D1
+        MOVE.B          #1,D0
         BSR             ESCCAR
-        ADD.B           #1,D6
+        ADD.W           #1,D5
         BRA             EBUC
-
-FEHITO: AND.B           #0,D6
-LBUC:   CMP.B           #2001,D6
-        BEQ             FLHITO
-        MOVE.B 		#3,D0
+NOWLEE: MOVE.W          #0,D5
+BUCLEE: CMP.W           #2001,D5
+        BEQ             ENDH1
+        MOVE.B          #1,D0
         BSR             LEECAR
-        ADD.B           #1,D6
-        BRA             LBUC
-FLHITO: BREAK
+        ADD.W           #1,D5
+        BRA             BUCLEE
+ENDH1:  BREAK
 
 
+HITO2:  BSR             INIT     
+        LEA             BBR,A5
+        MOVE.L          (A5),D2
+        ADD.L           #1000,D2
+        MOVE.L          D2,(A5)
+        MOVE.L          D2,$4(A5)
+        MOVE.W          #0,D5
+EBUC2:  CMP.W           #2001,D5
+        BEQ             NOWLE2
+        MOVE.B          #$13,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+        ADD.W           #1,D5
+        BRA             EBUC2
+NOWLE2: MOVE.W          #0,D5
+BUCLE2: CMP.W           #2001,D5
+        BEQ             ENDH2
+        MOVE.B          #1,D0
+        BSR             LEECAR
+        ADD.W           #1,D5
+        BRA             BUCLE2
+ENDH2:  BREAK
 
 
 
@@ -251,7 +272,8 @@ LFIND:  MOVE.L          (A1),A2            * A2 <- M(BUFFER) = dir_principio
         MOVE.B          (A2),D3            * muevo primer char en dir comienzo
         CMP.B           #0,D3              * si el primer char de la dir de comienzo = 0 => buffer vacio
         BEQ             EMPTY
-LGET:   MOVE.B          (A2),D0            * D0 <- M(dir_principio) = char
+LGET:   AND.L           #0,D0
+        MOVE.B          (A2),D0            * D0 <- M(dir_principio) = char
         MOVE.B          #0,(A2)+           * M(dir_principio) <- 0 ; dir_principio+=1
         MOVE.L          A1,D1
         ADD.L           #2008,D1           * A1+=2008B == fin de pila
@@ -283,27 +305,27 @@ ESCA:   BTST            #1,D0
 ESCAR:  LEA             BAR,A1
         BRA             EFIND
 ESCB:   LEA             BBR,A1
-EFIND:	MOVE.L          (A1),A3            * D2 <- M(BUS) = dir_principio
-        MOVE.L          $4(A1),A4          * D3 <- M(BUS+2) = dir_final
-        CMP.L 			A3,A4			   * si A3==A4 => pila vacía o llena	
-        BNE				NOFULL
-        MOVE.L 			(A3),D3 
-        CMP.L    		#0,D3			   * si M(D2)!=0 => pila llena
-        BNE				FULL
-NOFULL: MOVE.L 			A4,A2			   * A2 <- dir_final
-        MOVE.B 			D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
-        MOVE.B 			#0,D0			   * D0 <- 0
-        MOVE.L 			A1,D2			   * D2 <- dir_principio
-        ADD.L 			#2008,D2		   * D2 <- D2+2008 == fin_pila
-        CMP.L 			D2,A2			   * si dir_final == fin_pila => dir_principio == M(dir_bus+4)
-        BNE 			EMOVE
+EFIND:	MOVE.L          (A1),A3                    * D2 <- M(BUS) = dir_principio
+        MOVE.L          $4(A1),A4                 * D3 <- M(BUS+2) = dir_final
+        CMP.L 		A3,A4			   * si A3==A4 => pila vacía o llena	
+        BNE		NOFULL
+        MOVE.L 		(A3),D3 
+        CMP.L    	#0,D3			   * si M(D2)!=0 => pila llena
+        BNE		FULL
+NOFULL: MOVE.L 		A4,A2			   * A2 <- dir_final
+        MOVE.B 		D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
+        MOVE.B 		#0,D0			   * D0 <- 0
+        MOVE.L 		A1,D2			   * D2 <- dir_principio
+        ADD.L 		#2008,D2		   * D2 <- D2+2008 == fin_pila
+        CMP.L 		D2,A2			   * si dir_final == fin_pila => dir_principio == M(dir_bus+4)
+        BNE 		EMOVE
         MOVE.L          A1,D4              * D4 <- A1
         ADD.L           #8,D4              * D4 <- primer_espacio_pila
         MOVE.L          D4,$4(A1)          * dir_final = primer espacio_pila
         BRA             ENDL		
-EMOVE: 	MOVE.L 			A2,$4(A1)		   * actualizo dir_final
-        BRA 			ENDE
-FULL:	MOVE.L			#$FFFFFFFF,D0
+EMOVE: 	MOVE.L 		A2,$4(A1)		   * actualizo dir_final
+        BRA 		ENDE
+FULL:	MOVE.L		#$FFFFFFFF,D0
 ENDE:	RTS
 **************************** FIN ESCCAR ************************************************************
 
