@@ -162,6 +162,27 @@ PESC2: 	BSR 		INIT            * escribo en pila llena (simulado)
         BREAK
 		
 
+HITO1:  BSR 		INIT
+        LEA             BBR,A6
+        AND.B           #0,D6
+EBUC:   CMP.B           #2001,D6
+        BEQ             FEHITO
+        MOVE.B 		#$56,D1
+        MOVE.B 		#1,D0
+        BSR             ESCCAR
+        ADD.B           #1,D6
+        BRA             EBUC
+
+FEHITO: AND.B           #0,D6
+LBUC:   CMP.B           #2001,D6
+        BEQ             FLHITO
+        MOVE.B 		#3,D0
+        BSR             LEECAR
+        ADD.B           #1,D6
+        BRA             LBUC
+FLHITO: BREAK
+
+
 
 
 
