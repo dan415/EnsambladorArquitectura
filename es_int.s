@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    HITO2            * PC
+        DC.L    HITO3            * PC
 
         ORG     $400
 
@@ -39,6 +39,11 @@ BAT:     DS.B    2008
 BBR:     DS.B    2008
 BBT:     DS.B    2008
 
+CBAR:     DS.B    1           * Estas variables sirven para almecenar dos estados booleanos. Si
+CBAT:     DS.B    1           * el bit 0 está a 1 => l buffer está vacio
+CBBR:     DS.B    1           * Si el bit 1 está a 1 => el buffer esta lleno
+CBBT:     DS.B    1
+
 
 * Diseño y codificacion de casos de pruebas
 *********************************************************************************************
@@ -54,14 +59,8 @@ TAMBP:  EQU     7            * Tamaño de bloque para PRINT
 
 
 
-INICIO: MOVE.L          #BUS_ERROR,8        * Bus error handler
-        MOVE.L          #ADDRESS_ER,12      * Address error handler
-        MOVE.L          #ILLEGAL_IN,16      * Illegal instruction handler
-        MOVE.L          #PRIV_VIOLT,32      * Privilege violation handler
-        MOVE.L          #ILLEGAL_IN,40      * Illegal instruction handler
-        MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
+INICIO: 
         BSR             INIT
-        MOVE.W          #$2000,SR           * Permite interrupciones
 BUCPR:  MOVE.W          #TAMBS,PARTAM       * Inicializa parámetro de tamaño
         MOVE.L          #BUFFER,PARDIR      * Parámetro BUFFER = comienzo del buffer
 OTRAL:  MOVE.W          PARTAM,-(A7)        * Tamaño de bloque
@@ -110,6 +109,8 @@ PRIV_VIOLT:             BREAK               * Privilege violation handler
 *********************************************************************************************
 PLEE:   BSR             INIT
         LEA             BAR,A1
+        LEA             CBAR,A4
+        MOVE.B          #0,(A4)            * la pila deja de estar vacía
         LEA             $4(A1),A2          * A2 <- dir fin pila
         MOVE.L          (A2),A3
         MOVE.B          #$83,(A3)          * Pongo dato al final de pila
@@ -120,8 +121,10 @@ PLEE:   BSR             INIT
         BSR             LEECAR
         BREAK
 
-PLEE1:  BSR            INIT
+PLEE1:  BSR             INIT
         LEA             BAR,A1
+        LEA             CBAR,A4
+        MOVE.B          #0,(A4)            * la pila deja de estar vacía
         MOVE.L          A1,D2
         ADD.L           #2007,D2           *D2  <- ultima dir de pila
         MOVE.L          D2,(A1)
@@ -137,7 +140,7 @@ PLEE2:  BSR             INIT               * leo pila vacia
         BREAK
 		
 PESC: 	BSR 		INIT
-        LEA 		BBR,A1
+        LEA 		BBR,A1      
         MOVE.L 		A1,D1
         ADD.L 		#8,D1
         MOVE.L 		D1,A2
@@ -152,6 +155,8 @@ PESC: 	BSR 		INIT
 		
 PESC2: 	BSR 		INIT            * escribo en pila llena (simulado)
         LEA 		BBR,A1
+        LEA             CBBR,A4
+        MOVE.B          #2,(A4)
         MOVE.L 		A1,D1
         ADD.L 		#8,D1
         MOVE.L 		D1,A2
@@ -161,6 +166,21 @@ PESC2: 	BSR 		INIT            * escribo en pila llena (simulado)
         BSR             ESCCAR
         BREAK
 
+PESC3: 	BSR 		INIT            * escribo en pila llena (simulado)
+        LEA 		BBR,A1
+        LEA             CBBR,A4
+        MOVE.B          #0,(A4)
+        MOVE.L 		A1,D1
+        ADD.L 		#2007,D1
+        MOVE.L 		D1,A2
+        MOVE.L          A2,$4(A1)
+        MOVE.B 		#$43,D1
+        MOVE.L 		#1,D0
+        BSR             ESCCAR
+        MOVE.B 		#$41,D1
+        MOVE.L 		#1,D0
+        BSR             ESCCAR
+        BREAK
 
 HITO1:  BSR             INIT     
         LEA             BBR,A5
@@ -205,17 +225,89 @@ BUCLE2: CMP.W           #2001,D5
         BRA             BUCLE2
 ENDH2:  BREAK
 
+HITO3:  BSR             INIT     
+        LEA             BBR,A5
+        MOVE.W          #2,D5
+EBUC3:  CMP.W           #200,D5
+        BEQ             NOWLE3
+
+        MOVE.B          #0,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #1,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #2,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #3,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #$4,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #$5,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #$6,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #$7,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+
+        MOVE.B          #$8,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+
+        MOVE.B          #$9,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+        ADD.W           #1,D5
+
+        BRA             EBUC3
+
+
+NOWLE3: MOVE.B          #1,D0
+        BSR             LEECAR
+        
+        MOVE.B          #$01,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+
+        MOVE.B          #$23,D1
+        MOVE.B          #1,D0
+        BSR             ESCCAR
+        BREAK
+
 
 
 **************************** INIT *************************************************************
-INIT:
+INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
+        MOVE.L          #ADDRESS_ER,12      * Address error handler
+        MOVE.L          #ILLEGAL_IN,16      * Illegal instruction handler
+        MOVE.L          #PRIV_VIOLT,32      * Privilege violation handler
+        MOVE.L          #ILLEGAL_IN,40      * Illegal instruction handler
+        MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
+
         MOVE.B         #%00010000,CRA      * Reinicia el puntero MR1
         MOVE.B         #%00000011,MR1A     * 8 bits por caracter.
         MOVE.B         #%00000000,MR2A     * Eco desactivado.
         MOVE.B         #%11001100,CSRA     * Velocidad = 38400 bps.
         MOVE.B         #%00000000,ACR      * Velocidad = 38400 bps.
         MOVE.B         #%00000101,CRA      * Transmision y recepcion activados.
-        LEA            BAR,A1              * Cargo dirs de buffers
+
+
+        LEA              BAR,A1              * Cargo dirs de buffers
         LEA            BAT,A2
         LEA            BBR,A3
         LEA            BBT,A4
@@ -240,6 +332,19 @@ INIT:
         ADD.L           #8,D1              
         MOVE.L          D1,(A4)            
         MOVE.L          D1,$4(A4)  
+
+        LEA             CBAR,A1              * Cargo dirs de buffers
+        LEA             CBAT,A2
+        LEA             CBBR,A3
+        LEA             CBBT,A4
+
+        MOVE.B          #1,(A1)             * Pongo a 1 las vars de control de buffer
+        MOVE.B          #1,(A2)
+        MOVE.B          #1,(A3)
+        MOVE.B          #1,(A4)
+
+        MOVE.W          #$2000,SR           * Permite interrupciones
+
         RTS
 **************************** FIN INIT *********************************************************
 
@@ -257,22 +362,24 @@ LEECAR: BTST            #0,D0
         BTST            #1,D0
         BEQ             LLEEB
         LEA             BBT,A1             * A1 <- dir bus
-        BRA             LFIND
+        LEA             CBBT,A3            * A3 <- dir bits de control de buffer
+        BRA             LCTR
 LEEA:   BTST            #1,D0
         BEQ             LLEEA
         LEA             BAT,A1
-        BRA             LFIND
+        LEA             CBAT,A3            * A3 <- dir bits de control de buffer
+        BRA             LCTR
 LLEEA:  LEA             BAR,A1
-        BRA             LFIND
-LLEEB:  LEA             BBR,A1 
-LFIND:  MOVE.L          (A1),A2            * A2 <- M(BUFFER) = dir_principio
-        MOVE.L          $4(A1),A3          * A3 <- M(BUFFER+4) = dir final
-        CMP.L           A2,A3              * si A2==A3 => buffer vacio
-        BNE             LGET               * si dir comienzo != dir final =>  no esta vacía
-        MOVE.B          (A2),D3            * muevo primer char en dir comienzo
-        CMP.B           #0,D3              * si el primer char de la dir de comienzo = 0 => buffer vacio
-        BEQ             EMPTY
-LGET:   AND.L           #0,D0
+        LEA             CBAR,A3            * A3 <- dir bits de control de buffer
+        BRA             LCTR
+LLEEB:  LEA             BBR,A1
+        LEA             CBBR,A3            * A3 <- dir bits de control de buffer
+LCTR:   MOVE.B          (A3),D6  
+        BTST            #0,D6
+        BNE             EMPTY
+        MOVE.B          #0,(A3)            * Si no está vacía, como voy a leer, tampoco está llena     
+        AND.L           #0,D0
+        MOVE.L          (A1),A2
         MOVE.B          (A2),D0            * D0 <- M(dir_principio) = char
         MOVE.B          #0,(A2)+           * M(dir_principio) <- 0 ; dir_principio+=1
         MOVE.L          A1,D1
@@ -280,10 +387,13 @@ LGET:   AND.L           #0,D0
         CMP.L           D1,A2              * si dir_principio == fin de pila => dir_principio == dir buffer+8
         BNE             LMOVE
         MOVE.L          A1,D4              * d4 <- A1
-        ADD.L           #8,D4               * D4 <- primer_espacio_pila
-        MOVE.L          D4,(A1)            * dir_principio = primer espacio_pila
-        BRA             ENDL
+        ADD.L           #8,D4              * D4 <- primer_espacio_pila
+        MOVE.L          D4,A2            * dir_principio = primer espacio_pila
 LMOVE:  MOVE.L          A2,(A1)            * update dir_principio
+        MOVE.L          $4(A1),A4
+        CMP.L           A2,A4              * Si dir inicio == dir final => la pila se ha vaciado
+        BNE             ENDL
+        MOVE.B          #1,(A3)            * Como se ha vaciado pongo a 1 la var de control de pila
         BRA             ENDL
 EMPTY:  MOVE.L          #$FFFFFFFF,D0
 ENDL:   RTS
@@ -297,34 +407,38 @@ ESCCAR: BTST            #0,D0
         BTST            #1,D0
         BEQ             ESCB
         LEA             BBT,A1             * A1 <- dir_bus
-        BRA             EFIND
+        LEA             CBBT,A3            * A3 <- dir bits de control de pila
+        BRA             ECTR
 ESCA:   BTST            #1,D0
         BEQ             ESCAR
         LEA             BAT,A1
-        BRA             EFIND
+        LEA             CBAT,A3            * A3 <- dir bits de control de pila
+        BRA             ECTR
 ESCAR:  LEA             BAR,A1
-        BRA             EFIND
+        LEA             CBAR,A3            * A3 <- dir bits de control de pila
+        BRA             ECTR
 ESCB:   LEA             BBR,A1
-EFIND:	MOVE.L          (A1),A3                    * D2 <- M(BUS) = dir_principio
-        MOVE.L          $4(A1),A4                 * D3 <- M(BUS+2) = dir_final
-        CMP.L 		A3,A4			   * si A3==A4 => pila vacía o llena	
-        BNE		NOFULL
-        MOVE.L 		(A3),D3 
-        CMP.L    	#0,D3			   * si M(D2)!=0 => pila llena
+        LEA             CBBR,A3            * A3 <- dir bits de control de pila
+ECTR:	MOVE.B          (A3),D6  
+        BTST            #1,D6
         BNE		FULL
-NOFULL: MOVE.L 		A4,A2			   * A2 <- dir_final
+        MOVE.B          #0,(A3)            * Si no está llena, como voy a escribir, tampoco está vacía     
+        MOVE.L 		$4(A1),A2			   * A2 <- dir_final
         MOVE.B 		D1,(A2)+		   * M(dir_final) <- char ;A2=A2+1
         MOVE.B 		#0,D0			   * D0 <- 0
         MOVE.L 		A1,D2			   * D2 <- dir_principio
         ADD.L 		#2008,D2		   * D2 <- D2+2008 == fin_pila
         CMP.L 		D2,A2			   * si dir_final == fin_pila => dir_principio == M(dir_bus+4)
         BNE 		EMOVE
-        MOVE.L          A1,D4              * D4 <- A1
+        MOVE.L          A1,D4                           * D4 <- A1
         ADD.L           #8,D4              * D4 <- primer_espacio_pila
-        MOVE.L          D4,$4(A1)          * dir_final = primer espacio_pila
-        BRA             ENDL		
-EMOVE: 	MOVE.L 		A2,$4(A1)		   * actualizo dir_final
-        BRA 		ENDE
+        MOVE.L          D4,A2              * dir_final = primer espacio_pila
+EMOVE: 	MOVE.L 		A2,$4(A1)	   * actualizo dir_final
+        MOVE.L          (A1),A4
+        CMP.L           A2,A4              * Si dir inicio == dir final => la pila se ha llenado
+        BNE             ENDE
+        MOVE.B          #2,(A3)            * Como se ha llenado pongo a 2 la var de control de pila
+        BRA             ENDE
 FULL:	MOVE.L		#$FFFFFFFF,D0
 ENDE:	RTS
 **************************** FIN ESCCAR ************************************************************
