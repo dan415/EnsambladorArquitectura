@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    HITO3            * PC
+        DC.L    PSCAN2            * PC
 
         ORG     $400
 
@@ -151,6 +151,7 @@ PESC: 	BSR 		INIT
         MOVE.B 		#$41,D1
         MOVE.B 		#1,D0
         BSR 		ESCCAR
+        RTS
         BREAK
 		
 PESC2: 	BSR 		INIT            * escribo en pila llena (simulado)
@@ -351,7 +352,8 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
 
 
 **************************** PRINT ************************************************************
-PRINT:  RTS                                 
+PRINT:  
+        RTS                                 
 **************************** FIN PRINT ********************************************************
 
 
@@ -443,12 +445,70 @@ FULL:	MOVE.L		#$FFFFFFFF,D0
 ENDE:	RTS
 **************************** FIN ESCCAR ************************************************************
 
+PSCAN1: BSR            PESC  
+        MOVE.W         #4,-(A7)
+        MOVE.W         #1,-(A7)
+        MOVE.L         #BUFFER,-(A7)
+        BSR            SCAN
+        BREAK
+
+PSCAN2: BSR            PESC                 * tamaño mayor que lo que hay en buffer interno
+        MOVE.W         #1999,-(A7)
+        MOVE.W         #1,-(A7)
+        MOVE.L         #BUFFER,-(A7)
+        BSR            SCAN
+        BREAK
+
+PSCAN3: BSR            PESC                 * Descriptor erróneo
+        MOVE.W         #1999,-(A7)
+        MOVE.W         #2,-(A7)
+        MOVE.L         #BUFFER,-(A7)
+        BSR            SCAN
+        BREAK
 
 
 **************************** SCAN ************************************************************
-SCAN:  RTS                                 
+SCAN:   MOVE.L          4(A7),A1                  * Buffer
+        MOVE.W          8(A7),D2                  * Descriptor
+        MOVE.W          10(A7),D3                 * Tamaño
+        CMP             #0,D3
+        BLT             SFAIL
+        CMP.W           #0,D2
+        BEQ             SCANA
+        CMP.W           #1,D2
+        BNE             SFAIL
+        MOVE.L          BBR,A2
+        BRA             READBU
+SCANA:  MOVE.L          BAR,A2
+        AND.W           #0,D4                    * Contador 
+READBU: CMP.W           #0,D3
+        LINK            A6,#-14
+        MOVE.W          D4,-2(A6)                * Guardo contador  
+        MOVE.W          D3,-4(A6)                * Guardo tamaño
+        MOVE.L          A2,-8(A6)                * Guardo buffer
+        MOVE.L          A1,-12(A6)               * Guardo buffer interno
+        AND.L           #0,D0
+        OR.L            D2,D0
+        BSR             LEECAR
+        AND.L           #0,D4                   * Necesito una suma con L y no puede haber basura en D4
+        MOVE.L          -12(A6),A1
+        MOVE.L          -8(A6),A2
+        MOVE.W          -4(A6),D3
+        MOVE.W          -2(A6),D4
+        UNLK            A6
+        CMP.L           #$FFFFFFFF,D0
+        BEQ             SCANE
+        SUB.W           #1,D3
+        MOVE.L          A1,A3
+        ADD.L           D4,A3                   * Posicion del buffer  
+        MOVE.B          D0,(A3)         
+        ADD.W           #1,D4
+        BRA             READBU
+SCANE:  MOVE.L          D4,D0    
+        RTS
+SFAIL:  MOVE.L          #$FFFFFFFF,D0
+        RTS
 **************************** FIN SCAN ************************************************************
-
 
 
 **************************** PROGRAMA PRINCIPAL **********************************************
