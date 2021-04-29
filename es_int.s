@@ -30,6 +30,7 @@ CR	EQU	$0D	      * Carriage Return
 LF	EQU	$0A	      * Line Feed
 FLAGT	EQU	2	      * Flag de transmisi�n
 FLAGR   EQU     0	      * Flag de recepci�n
+IVR     EQU     $EFFC19       * del vector de interrupcion
 
 * Bufferes internos
 *********************************
@@ -39,10 +40,12 @@ BAT:     DS.B    2008
 BBR:     DS.B    2008
 BBT:     DS.B    2008
 
-CBAR:     DS.B    1           * Estas variables sirven para almecenar dos estados booleanos. Si
-CBAT:     DS.B    1           * el bit 0 está a 1 => l buffer está vacio
-CBBR:     DS.B    1           * Si el bit 1 está a 1 => el buffer esta lleno
-CBBT:     DS.B    1
+CBAR:    DS.B    1           * Estas variables sirven para almecenar dos estados booleanos. Si
+CBAT:    DS.B    1           * el bit 0 está a 1 => l buffer está vacio
+CBBR:    DS.B    1           * Si el bit 1 está a 1 => el buffer esta lleno
+CBBT:    DS.B    1
+
+CIMR:   DS.B     1   
 
 
 * Diseño y codificacion de casos de pruebas
@@ -290,6 +293,27 @@ NOWLE3: MOVE.B          #1,D0
         BSR             ESCCAR
         BREAK
 
+PSCAN1: BSR            PESC  
+        MOVE.W         #4,-(A7)
+        MOVE.W         #1,-(A7)
+        MOVE.L         #BUFFER,-(A7)
+        BSR            SCAN
+        BREAK
+
+PSCAN2: BSR            PESC                 * tamaño mayor que lo que hay en buffer interno
+        MOVE.W         #1999,-(A7)
+        MOVE.W         #1,-(A7)
+        MOVE.L         #BUFFER,-(A7)
+        BSR            SCAN
+        BREAK
+
+PSCAN3: BSR            PESC                 * Descriptor erróneo
+        MOVE.W         #1999,-(A7)
+        MOVE.W         #2,-(A7)
+        MOVE.L         #BUFFER,-(A7)
+        BSR            SCAN
+        BREAK
+
 
 
 **************************** INIT *************************************************************
@@ -299,16 +323,23 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
         MOVE.L          #PRIV_VIOLT,32      * Privilege violation handler
         MOVE.L          #ILLEGAL_IN,40      * Illegal instruction handler
         MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
+        MOVE.L          #RTI,64             * DUART
+        MOVE.L          64,IVR             * DUART
 
         MOVE.B         #%00010000,CRA      * Reinicia el puntero MR1
         MOVE.B         #%00000011,MR1A     * 8 bits por caracter.
+        MOVE.B         #%00000011,MR1B     * 8 bits por caracter. 
         MOVE.B         #%00000000,MR2A     * Eco desactivado.
+        MOVE.B         #%00000000,MR2B     * Eco desactivado. 
         MOVE.B         #%11001100,CSRA     * Velocidad = 38400 bps.
+        MOVE.B         #%00000000,BCR      * Velocidad = 38400 bps.
+        MOVE.B         #%11001100,CSRB     * Velocidad = 38400 bps.
         MOVE.B         #%00000000,ACR      * Velocidad = 38400 bps.
         MOVE.B         #%00000101,CRA      * Transmision y recepcion activados.
+        MOVE.B         #%00100010,IMR      
 
 
-        LEA              BAR,A1              * Cargo dirs de buffers
+        LEA            BAR,A1              * Cargo dirs de buffers
         LEA            BAT,A2
         LEA            BBR,A3
         LEA            BBT,A4
@@ -343,8 +374,6 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
         MOVE.B          #1,(A2)
         MOVE.B          #1,(A3)
         MOVE.B          #1,(A4)
-
-        MOVE.W          #$2000,SR           * Permite interrupciones
 
         RTS
 **************************** FIN INIT *********************************************************
@@ -445,26 +474,6 @@ FULL:	MOVE.L		#$FFFFFFFF,D0
 ENDE:	RTS
 **************************** FIN ESCCAR ************************************************************
 
-PSCAN1: BSR            PESC  
-        MOVE.W         #4,-(A7)
-        MOVE.W         #1,-(A7)
-        MOVE.L         #BUFFER,-(A7)
-        BSR            SCAN
-        BREAK
-
-PSCAN2: BSR            PESC                 * tamaño mayor que lo que hay en buffer interno
-        MOVE.W         #1999,-(A7)
-        MOVE.W         #1,-(A7)
-        MOVE.L         #BUFFER,-(A7)
-        BSR            SCAN
-        BREAK
-
-PSCAN3: BSR            PESC                 * Descriptor erróneo
-        MOVE.W         #1999,-(A7)
-        MOVE.W         #2,-(A7)
-        MOVE.L         #BUFFER,-(A7)
-        BSR            SCAN
-        BREAK
 
 
 **************************** SCAN ************************************************************
@@ -510,6 +519,72 @@ SFAIL:  MOVE.L          #$FFFFFFFF,D0
         RTS
 **************************** FIN SCAN ************************************************************
 
+**************************** RTI **********************************************
+RTI:    LINK            A6,#-52
+        MOVE.L          D0,-4(A6)              
+        MOVE.L          D1,-8(A6)              
+        MOVE.L          D2,-12(A6)                
+        MOVE.L          D3,-16(A6)             
+        MOVE.L          D4,-20(A6)             
+        MOVE.L          D5,-24(A6)             
+        MOVE.L          A1,-28(A6)             
+        MOVE.L          A2,-32(A6)             
+        MOVE.L          A3,-36(A6)             
+        MOVE.L          A4,-40(A6)             
+        MOVE.L          A5,-44(A6)             
+        MOVE.L          A7,-48(A6)     
+
+        MOVE.B          (CIMR),D1
+        MOVE.B          (ISR),D2
+        AND.B           D1,D2
+        BTST            #1,D2                   * I viene de BAR
+        BEQ             IBAR
+        BTST            #5,D2                   * I viene de BBR
+        BEQ             IBBR
+        BTST            #0,D2                   * I viene de BAT
+        BEQ             IBAT                           
+        MOVE.L          #3,D0                   * I viene de BBT
+        BCLR            #4,CIMR
+        MOVE.L          TBB,A5
+
+TRANS:  BSR             LEECAR
+        CMP.L           #$FFFFFFFF,D0
+        BEQ             FINRTI
+        MOVE.B          D0,(A5)
+
+REC:    BSR             ESCCAR
+
+FINRTI: 
+        MOVE.L          -4(A6),D0           
+        MOVE.L          -8(A6),D1             
+        MOVE.L          -12(A6),D2                
+        MOVE.L          -16(A6),D3           
+        MOVE.L          -20(A6),D4           
+        MOVE.L          -24(A6),D5           
+        MOVE.L          -28(A6),A1           
+        MOVE.L          -32(A6),A2
+        MOVE.L          -36(A6),A3           
+        MOVE.L          -40(A6),A4            
+        MOVE.L          -44(A6),A5             
+        MOVE.L          -48(A6),A7    
+        UNLK            A6    
+        MOVE.L          (CIMR),IMR
+        RTS
+
+IBAR:   MOVE.B          #0,D0
+        MOVE.B          (RBA),D1
+        BRA             REC
+
+IBAT:   BCLR            #0,CIMR
+        MOVE.B          #2,D0
+        MOVE.L          TBA,A5
+        BRA             TRANS
+
+IBBR:   MOVE.B          #1,D0
+        MOVE.B          (RBB),D1
+        BRA             REC
+      
+**************************** FIN RTI ******************************************
 
 **************************** PROGRAMA PRINCIPAL **********************************************
 
