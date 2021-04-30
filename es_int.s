@@ -31,6 +31,11 @@ LF	EQU	$0A	      * Line Feed
 FLAGT	EQU	2	      * Flag de transmisi�n
 FLAGR   EQU     0	      * Flag de recepci�n
 
+* Copia de IMR
+*********************************
+
+CPIMR 	EQU 	$effc20		* copia de IMR
+
 * Bufferes internos
 *********************************
 
@@ -352,8 +357,59 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
 
 
 **************************** PRINT ************************************************************
-PRINT:  
-        RTS                                 
+PRINT:    MOVE.L          	4(A6),A1                  * Buffer
+          MOVE.W          	8(A6),D2                  * Descriptor
+          MOVE.W          	10(A6),D3                 * Tamaño
+		  MOVE.L 			(A1),D5
+		  *CMP.L 			#0,D5
+		  *BEQ				PFAIL
+	      CMP.W  			#0,D3
+	      BLT 			   	PRINT0
+	      CMP.W		   		#0,D2
+	      BEQ 			   	PRINTA
+	      CMP.W		   		#1,D2
+	      BNE 			   	PFAIL
+	      MOVE.L 		   	BBT,A2
+	      AND.W		   		#0,D4					 	* Contador
+	      BRA 			   	WRITEBU
+PRINTA:   MOVE.L			BAT,A2
+		  AND.W 			#0,D4					 	* Contador
+WRITEBU:  CMP.W 			#0,D3
+		  BEQ  				WRITEE
+		  LINK              A6,#-14
+          MOVE.W            D4,-2(A6)                * Guardo contador  
+          MOVE.W            D3,-4(A6)                * Guardo tamaño
+          MOVE.L            A2,-8(A6)                * Guardo buffer
+          MOVE.L            A1,-12(A6)               * Guardo buffer interno
+          AND.L             #0,D0
+          OR.L              D2,D0
+		  BSR 				ESCCAR
+		  AND.L             #0,D4                   * Necesito una suma con L y no puede haber basura en D4¿¿¿???
+          MOVE.L            -12(A6),A1
+          MOVE.L            -8(A6),A2
+          MOVE.W            -4(A6),D3
+          MOVE.W            -2(A6),D4
+          UNLK              A6
+          CMP.L             #$FFFFFFFF,D0
+          BEQ               WRITEE
+          SUB.W             #1,D3
+          MOVE.L            A1,A3
+          ADD.L             D4,A3                   * Posicion del buffer  
+          MOVE.B            D0,(A3)         
+          ADD.W             #1,D4
+          BRA               WRITEBU
+PRINT0:   MOVE.L 			#0,D0
+		  BSET				#0,CPIMR
+		  MOVE.B 			CPIMR,IMR
+		  RTS
+WRITEE:   MOVE.L            D4,D0
+		  BSET				#0,CPIMR
+		  MOVE.B 			CPIMR,IMR    
+          RTS  
+PFAIL:    MOVE.L            #$FFFFFFFF,D0
+		  BCLR				#0,CPIMR
+		  MOVE.B 			CPIMR,IMR
+          RTS                                 
 **************************** FIN PRINT ********************************************************
 
 
