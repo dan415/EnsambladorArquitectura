@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PSCAN2            * PC
+        DC.L    PRTI2            * PC
 
         ORG     $400
 
@@ -26,11 +26,12 @@ TBB     EQU     $effc17       * buffer transmision B (escritura)
 RBB	EQU	$effc17       * buffer recepcion B (lectura)
 SRB     EQU     $effc13       * de estado B (lectura)
 CSRB	EQU	$effc13       * de seleccion de reloj B (escritura)
+IVR     EQU     $effc19       * del vector de interrupcion
 CR	EQU	$0D	      * Carriage Return
 LF	EQU	$0A	      * Line Feed
 FLAGT	EQU	2	      * Flag de transmisi�n
 FLAGR   EQU     0	      * Flag de recepci�n
-IVR     EQU     $EFFC19       * del vector de interrupcion
+
 
 * Bufferes internos
 *********************************
@@ -143,7 +144,7 @@ PLEE2:  BSR             INIT               * leo pila vacia
         BREAK
 		
 PESC: 	BSR 		INIT
-        LEA 		BBR,A1      
+        LEA 		BBT,A1      
         MOVE.L 		A1,D1
         ADD.L 		#8,D1
         MOVE.L 		D1,A2
@@ -152,7 +153,7 @@ PESC: 	BSR 		INIT
         MOVE.B 		#$53,(A2)+
         MOVE.L 		A2,$4(A1)
         MOVE.B 		#$41,D1
-        MOVE.B 		#1,D0
+        MOVE.B 		#3,D0
         BSR 		ESCCAR
         RTS
         BREAK
@@ -314,6 +315,17 @@ PSCAN3: BSR            PESC                 * Descriptor erróneo
         BSR            SCAN
         BREAK
 
+PRTI:   BSR PESC
+        BSET #4,CIMR
+        BSET #4,IMR
+        ADD #2,D2
+        ADD #2,D2
+        BREAK
+
+PRTI2:  BSR INIT
+WAIT1:  BRA WAIT1
+        BREAK
+
 
 
 **************************** INIT *************************************************************
@@ -323,20 +335,25 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
         MOVE.L          #PRIV_VIOLT,32      * Privilege violation handler
         MOVE.L          #ILLEGAL_IN,40      * Illegal instruction handler
         MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
-        MOVE.L          #RTI,64             * DUART
-        MOVE.L          64,IVR             * DUART
+        MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
+        MOVE.B          #64,$effc19
+        MOVE.L          #RTI,$100
 
-        MOVE.B         #%00010000,CRA      * Reinicia el puntero MR1
+
+        MOVE.B         #%0001000,CRA      * Reinicia el puntero MR1
+        MOVE.B         #%00010000,CRB 
         MOVE.B         #%00000011,MR1A     * 8 bits por caracter.
         MOVE.B         #%00000011,MR1B     * 8 bits por caracter. 
         MOVE.B         #%00000000,MR2A     * Eco desactivado.
         MOVE.B         #%00000000,MR2B     * Eco desactivado. 
         MOVE.B         #%11001100,CSRA     * Velocidad = 38400 bps.
-        MOVE.B         #%00000000,BCR      * Velocidad = 38400 bps.
         MOVE.B         #%11001100,CSRB     * Velocidad = 38400 bps.
-        MOVE.B         #%00000000,ACR      * Velocidad = 38400 bps.
-        MOVE.B         #%00000101,CRA      * Transmision y recepcion activados.
+        MOVE.B         #%00000000,ACR      
+        MOVE.B         #%00000101,CRA      
+        MOVE.B         #%00000101,CRB 
+        MOVE.B         #%00100010,CIMR
         MOVE.B         #%00100010,IMR      
+             
 
 
         LEA            BAR,A1              * Cargo dirs de buffers
@@ -375,6 +392,7 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
         MOVE.B          #1,(A3)
         MOVE.B          #1,(A4)
 
+        MOVE.W          #$2000,SR
         RTS
 **************************** FIN INIT *********************************************************
 
@@ -520,7 +538,7 @@ SFAIL:  MOVE.L          #$FFFFFFFF,D0
 **************************** FIN SCAN ************************************************************
 
 **************************** RTI **********************************************
-RTI:    LINK            A6,#-52
+RTI:    LINK            A6,#-48
         MOVE.L          D0,-4(A6)              
         MOVE.L          D1,-8(A6)              
         MOVE.L          D2,-12(A6)                
@@ -532,30 +550,31 @@ RTI:    LINK            A6,#-52
         MOVE.L          A3,-36(A6)             
         MOVE.L          A4,-40(A6)             
         MOVE.L          A5,-44(A6)             
-        MOVE.L          A7,-48(A6)     
 
-        MOVE.B          (CIMR),D1
-        MOVE.B          (ISR),D2
+        MOVE.B          CIMR,D1
+        MOVE.B          ISR,D2
         AND.B           D1,D2
-        BTST            #1,D2                   * I viene de BAR
-        BEQ             IBAR
-        BTST            #5,D2                   * I viene de BBR
-        BEQ             IBBR
-        BTST            #0,D2                   * I viene de BAT
-        BEQ             IBAT                           
-        MOVE.L          #3,D0                   * I viene de BBT
+        BTST            #1,D2                   * I viene de RBA
+        BNE             IBAR
+        BTST            #5,D2                   * I viene de RBB
+        BNE             IBBR
+        BTST            #0,D2                   * I viene de TAB
+        BNE             IBAT                           
+        MOVE.L          #3,D0                   * I viene de TBB
         BCLR            #4,CIMR
-        MOVE.L          TBB,A5
+        MOVE.B          CIMR,D5
+        MOVE.B          D5,IMR
+        MOVE.L          #TBB,A5
 
 TRANS:  BSR             LEECAR
         CMP.L           #$FFFFFFFF,D0
         BEQ             FINRTI
         MOVE.B          D0,(A5)
+        BRA             FINRTI
 
 REC:    BSR             ESCCAR
 
-FINRTI: 
-        MOVE.L          -4(A6),D0           
+FINRTI: MOVE.L          -4(A6),D0           
         MOVE.L          -8(A6),D1             
         MOVE.L          -12(A6),D2                
         MOVE.L          -16(A6),D3           
@@ -565,23 +584,23 @@ FINRTI:
         MOVE.L          -32(A6),A2
         MOVE.L          -36(A6),A3           
         MOVE.L          -40(A6),A4            
-        MOVE.L          -44(A6),A5             
-        MOVE.L          -48(A6),A7    
+        MOVE.L          -44(A6),A5                
         UNLK            A6    
-        MOVE.L          (CIMR),IMR
-        RTS
+        RTE
 
 IBAR:   MOVE.B          #0,D0
-        MOVE.B          (RBA),D1
+        MOVE.B          RBA,D1
         BRA             REC
 
 IBAT:   BCLR            #0,CIMR
+        MOVE.B          CIMR,D5
+        MOVE.B          D5,IMR
         MOVE.B          #2,D0
-        MOVE.L          TBA,A5
+        MOVE.L          #TBA,A5
         BRA             TRANS
 
 IBBR:   MOVE.B          #1,D0
-        MOVE.B          (RBB),D1
+        MOVE.B          RBB,D1
         BRA             REC
       
 **************************** FIN RTI ******************************************
