@@ -325,6 +325,12 @@ PRTI:   BSR PESC
 PRTI2:  BSR INIT
 WAIT1:  BRA WAIT1
         BREAK
+		
+PPRINT1: BREAK
+
+PPRINT2: BREAK
+
+PPRINT3: BREAK
 
 
 
@@ -399,15 +405,13 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
 
 
 **************************** PRINT ************************************************************
-PRINT:    MOVE.L          	4(A6),A1                  * Buffer
-          MOVE.W          	8(A6),D2                  * Descriptor
-          MOVE.W          	10(A6),D3                 * Tamaño
-		  MOVE.L 			(A1),D7
-		  CMP.L 			#0,D7
-		  BEQ				PFAIL
-		  AND.W 			#0,D4						* Contador
+PRINT:    MOVE.L          	4(A7),A1                  * Buffer
+          MOVE.W          	8(A7),D2                  * Descriptor
+          MOVE.W          	10(A7),D3                 * Tamaño
+		  AND.W 			#0,D4					  * Contador
 	      CMP.W  			#0,D3
-	      BLT 			   	WRITEE
+	      BLT 			   	PFAIL
+		  BEQ				WRITEE
 	      CMP.W		   		#0,D2
 	      BEQ 			   	PRINTA
 	      CMP.W		   		#1,D2
