@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PRTI2            * PC
+        DC.L    INICIO            * PC
 
         ORG     $400
 
@@ -75,6 +75,7 @@ ESPL:   BSR             SCAN
         ADD.L           D0,PARDIR           * Calcula la nueva dirección de lectura
         SUB.W           D0,PARTAM           * Actualiza el número de caracteres leı́dos
         BNE             OTRAL               * Si no se han leı́do todas los caracteres
+        MOVE.L          #BUFFER,A5
                                             * del bloque se vuelve a leer
         MOVE.W          #TAMBS,CONTC        * Inicializa contador de caracteres a imprimir
         MOVE.L          #BUFFER,PARDIR      * Parámetro BUFFER = comienzo del buffer
