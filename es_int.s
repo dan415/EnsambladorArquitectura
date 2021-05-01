@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    PRTI2            * PC
+        DC.L    PPRINT3           * PC
 
         ORG     $400
 
@@ -326,11 +326,68 @@ PRTI2:  BSR INIT
 WAIT1:  BRA WAIT1
         BREAK
 		
-PPRINT1: BREAK
+PPRINT1: BSR			INIT
+		 MOVE.W 		#0,-(A7)			* Prueba con Tamaño = 0
+		 MOVE.W 		#1,-(A7)
+		 MOVE.L 		#BUFFER,-(A7)
+		 BSR 			PRINT
+		 BREAK
 
-PPRINT2: BREAK
+PPRINT2: BSR 			INIT
+		 MOVE.L 		#BUFFER,A2			* Prueba Tamaño = 4
+         MOVE.B 		#$43,(A2)+
+		 MOVE.B 		#$41,(A2)+
+		 MOVE.B         #$41,(A2)+
+		 MOVE.B 		#$43,(A2)+
+		 MOVE.W 		#4,-(A7)
+		 MOVE.W 		#1,-(A7)
+		 MOVE.L 		#BUFFER,-(A7)
+		 BSR			PRINT
+		 BREAK
 
-PPRINT3: BREAK
+PPRINT3: BSR			INIT
+		 MOVE.L 		#BUFFER,A2			* Prueba con Error en Descriptor
+         MOVE.B 		#$43,(A2)+
+		 MOVE.B 		#$41,(A2)+
+		 MOVE.W 		#2,-(A7)
+		 MOVE.W 		#2,-(A7)
+		 MOVE.L 		#BUFFER,-(A7)
+		 BSR 			PRINT
+		 BREAK
+		 
+PPRINT4: BSR 			PESC				* Prueba Tamaño = 8, habiendo ya caracteres en Buffer Interno
+		 MOVE.B 		#0,D1
+         MOVE.L 		#BUFFER,A2
+         MOVE.B 		#$43,(A2)+
+		 MOVE.B 		#$41,(A2)+
+		 MOVE.B 		#$43,(A2)+
+		 MOVE.B 		#$41,(A2)+
+		 MOVE.B 		#$43,(A2)+
+		 MOVE.B 		#$41,(A2)+
+		 MOVE.B 		#$43,(A2)+
+		 MOVE.B 		#$41,(A2)+
+		 MOVE.W 		#8,-(A7)
+		 MOVE.W 		#1,-(A7)
+		 MOVE.L 		#BUFFER,-(A7)
+		 BSR 			PRINT
+		 BREAK
+		 
+PPRINT5: BSR			INIT
+		 MOVE.L 		#BUFFER,A2			* Prueba que llena el Buffer Interno
+		 MOVE.W 		#2000,D4
+BUC:     CMP.W			#0,D4
+		 BEQ 			FINBUC
+         MOVE.B 		#$43,(A2)+
+		 SUB.W 			#1,D4
+		 BRA 			BUC
+FINBUC:  MOVE.W 		#2000,-(A7)
+		 MOVE.W 		#0,-(A7)
+		 MOVE.L 		#BUFFER,-(A7)
+		 BSR			PRINT
+		 BREAK
+		 
+
+		 
 
 
 
@@ -405,7 +462,7 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
 
 
 **************************** PRINT ************************************************************
-PRINT:    MOVE.L          	4(A7),A1                  * Buffer
+PRINT:    MOVE.L          	4(A7),A2                  * Buffer
           MOVE.W          	8(A7),D2                  * Descriptor
           MOVE.W          	10(A7),D3                 * Tamaño
 		  AND.W 			#0,D4					  * Contador
@@ -416,33 +473,36 @@ PRINT:    MOVE.L          	4(A7),A1                  * Buffer
 	      BEQ 			   	PRINTA
 	      CMP.W		   		#1,D2
 	      BNE 			   	PFAIL
-	      MOVE.L 		   	BBT,A2
-	      AND.W		   		#16,D6					 	
+	      MOVE.W 		   	#3,D2
+	      MOVE.W     		#16,D6					 	
 	      BRA 			   	WRITEBU
-PRINTA:   MOVE.L			BAT,A2
+PRINTA:   MOVE.W 			#1,D2
 		  AND.W 			#0,D6					 	
 WRITEBU:  CMP.W 			#0,D3
 		  BEQ  				WRITEE
-		  LINK              A6,#-14
+		  MOVE.B			(A2),D1
+		  MOVE.B 			#0,(A2)+
+		  LINK              A6,#-20
           MOVE.W            D4,-2(A6)                * Guardo contador  
           MOVE.W            D3,-4(A6)                * Guardo tamaño
-          MOVE.L            A2,-8(A6)                * Guardo buffer
-          MOVE.L            A1,-12(A6)               * Guardo buffer interno
+          MOVE.L            A2,-8(A6)               * Guardo buffer 
+		  MOVE.W			D6,-12(A6)				 * Guardo bit IMR
+		  MOVE.B 			D1,-14(A6)				 * Guardo Caracter
+		  MOVE.W 			D2,-18(A6)				 * Guardo Descriptor
           AND.L             #0,D0
           OR.L              D2,D0
 		  BSR 				ESCCAR
 		  AND.L             #0,D4                   * Necesito una suma con L y no puede haber basura en D4
-          MOVE.L            -12(A6),A1
+		  MOVE.W 			-18(A6),D2
+		  MOVE.B 			-14(A6),D1
+		  MOVE.W 			-12(A6),D6
           MOVE.L            -8(A6),A2
           MOVE.W            -4(A6),D3
           MOVE.W            -2(A6),D4
           UNLK              A6
           CMP.L             #$FFFFFFFF,D0
           BEQ               WRITEE
-          SUB.W             #1,D3
-          MOVE.L            A1,A3
-          ADD.L             D4,A3                   * Posicion del buffer  
-          MOVE.B            #0,(A3)         
+          SUB.W             #1,D3        
           ADD.W             #1,D4
           BRA               WRITEBU
 WRITEE:   MOVE.L            D4,D0
@@ -451,9 +511,6 @@ WRITEE:   MOVE.L            D4,D0
 		  MOVE.B 			D5,IMR    
           RTS  
 PFAIL:    MOVE.L            #$FFFFFFFF,D0
-		  BCLR				D6,CIMR
-		  MOVE.B 			CIMR,D5
-		  MOVE.B 			D5,IMR
           RTS                                                     
 **************************** FIN PRINT ********************************************************
 
