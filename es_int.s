@@ -426,77 +426,77 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
         LEA            BBT,A4
                                             * Procedo a inicializar punteros a principio y final de pila, de momento esta vacia
                                             * asi que principio = final
-        MOVE.L          A1,D1               
-        ADD.L           #8,D1               * D1 <-A1+8  
-        MOVE.L          D1,(A1)             * M(A1) <-A1+8
-        MOVE.L          D1,$4(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
+        MOVE.L         A1,D1               
+        ADD.L          #8,D1               * D1 <-A1+8  
+        MOVE.L         D1,(A1)             * M(A1) <-A1+8
+        MOVE.L         D1,$4(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
 
-        MOVE.L          A2,D1               
-        ADD.L           #8,D1              
-        MOVE.L          D1,(A2)            
-        MOVE.L          D1,$4(A2)    
+        MOVE.L         A2,D1               
+        ADD.L          #8,D1              
+        MOVE.L         D1,(A2)            
+        MOVE.L         D1,$4(A2)    
 
-        MOVE.L          A3,D1               
-        ADD.L           #8,D1              
-        MOVE.L          D1,(A3)            
-        MOVE.L          D1,$4(A3)    
+        MOVE.L         A3,D1               
+        ADD.L          #8,D1              
+        MOVE.L         D1,(A3)            
+        MOVE.L         D1,$4(A3)    
         
-        MOVE.L          A4,D1               
-        ADD.L           #8,D1              
-        MOVE.L          D1,(A4)            
-        MOVE.L          D1,$4(A4)  
+        MOVE.L         A4,D1               
+        ADD.L          #8,D1              
+        MOVE.L         D1,(A4)            
+        MOVE.L         D1,$4(A4)  
 
-        LEA             CBAR,A1              * Cargo dirs de buffers
-        LEA             CBAT,A2
-        LEA             CBBR,A3
-        LEA             CBBT,A4
+        LEA            CBAR,A1              * Cargo dirs de buffers
+        LEA            CBAT,A2
+        LEA            CBBR,A3
+        LEA            CBBT,A4
 
-        MOVE.B          #1,(A1)             * Pongo a 1 las vars de control de buffer
-        MOVE.B          #1,(A2)
-        MOVE.B          #1,(A3)
-        MOVE.B          #1,(A4)
+        MOVE.B         #1,(A1)             * Pongo a 1 las vars de control de buffer
+        MOVE.B         #1,(A2)
+        MOVE.B         #1,(A3)
+        MOVE.B         #1,(A4)
 
-        MOVE.W          #$2000,SR
+        MOVE.W         #$2000,SR
         RTS
 **************************** FIN INIT *********************************************************
 
 
 
 **************************** PRINT ************************************************************
-PRINT:    MOVE.L          	4(A7),A2                  * Buffer
-          MOVE.W          	8(A7),D2                  * Descriptor
-          MOVE.W          	10(A7),D3                 * Tamaño
-		  AND.W 			#0,D4					  * Contador
-	      CMP.W  			#0,D3
-	      BLT 			   	PFAIL
-		  BEQ				WRITEE
-	      CMP.W		   		#0,D2
-	      BEQ 			   	PRINTA
-	      CMP.W		   		#1,D2
-	      BNE 			   	PFAIL
-	      MOVE.W 		   	#3,D2
-	      MOVE.W     		#16,D6					 	
-	      BRA 			   	WRITEBU
-PRINTA:   MOVE.W 			#1,D2
-		  AND.W 			#0,D6					 	
-WRITEBU:  CMP.W 			#0,D3
-		  BEQ  				WRITEE
-		  MOVE.B			(A2),D1
-		  MOVE.B 			#0,(A2)+
-		  LINK              A6,#-20
+PRINT:    MOVE.L             4(A7),A2                  * Buffer
+          MOVE.W            8(A7),D2                  * Descriptor
+          MOVE.W            10(A7),D3                 * Tamaño
+          AND.W 	    #0,D4					  * Contador
+          CMP.W  	    #0,D3
+	  BLT 		    PFAIL
+	  BEQ		    WRITEE
+	  CMP.W		    #0,D2
+          BEQ 		    PRINTA
+	  CMP.W		    #1,D2
+	  BNE 		    PFAIL
+	  MOVE.W 	    #3,D2
+	  MOVE.W     	    #16,D6					 	
+	  BRA 		    WRITEBU
+PRINTA:   MOVE.W 	    #1,D2
+	  AND.W 	    #0,D6					 	
+WRITEBU:  CMP.W 	    #0,D3
+	  BEQ  		    WRITEE
+	  MOVE.B	    (A2),D1
+	  MOVE.B 	    #0,(A2)+
+	  LINK              A6,#-20
           MOVE.W            D4,-2(A6)                * Guardo contador  
           MOVE.W            D3,-4(A6)                * Guardo tamaño
           MOVE.L            A2,-8(A6)               * Guardo buffer 
-		  MOVE.W			D6,-12(A6)				 * Guardo bit IMR
-		  MOVE.B 			D1,-14(A6)				 * Guardo Caracter
-		  MOVE.W 			D2,-18(A6)				 * Guardo Descriptor
+	  MOVE.W	    D6,-12(A6)				 * Guardo bit IMR
+	  MOVE.B 	    D1,-14(A6)				 * Guardo Caracter
+	  MOVE.W 	    D2,-18(A6)				 * Guardo Descriptor
           AND.L             #0,D0
           OR.L              D2,D0
-		  BSR 				ESCCAR
-		  AND.L             #0,D4                   * Necesito una suma con L y no puede haber basura en D4
-		  MOVE.W 			-18(A6),D2
-		  MOVE.B 			-14(A6),D1
-		  MOVE.W 			-12(A6),D6
+          BSR 		    ESCCAR
+          AND.L             #0,D4                   * Necesito una suma con L y no puede haber basura en D4
+          MOVE.W 	    -18(A6),D2
+          MOVE.B            -14(A6),D1
+          MOVE.W 	    -12(A6),D6
           MOVE.L            -8(A6),A2
           MOVE.W            -4(A6),D3
           MOVE.W            -2(A6),D4
@@ -507,9 +507,9 @@ WRITEBU:  CMP.W 			#0,D3
           ADD.W             #1,D4
           BRA               WRITEBU
 WRITEE:   MOVE.L            D4,D0
-		  BSET				D6,CIMR
-		  MOVE.B			CIMR,D5
-		  MOVE.B 			D5,IMR    
+	  BSET		    D6,CIMR
+	  MOVE.B	    CIMR,D5
+	  MOVE.B 	    D5,IMR    
           RTS  
 PFAIL:    MOVE.L            #$FFFFFFFF,D0
           RTS                                                     
