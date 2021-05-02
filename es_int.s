@@ -789,6 +789,20 @@ BP:	MOVE.L 		A1,-(A7)
 	NOP
 	NOP
 	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
 	CMP.L 		#500,D0
 	BNE		ERRORP
 	ADD.L 		#8,A7
@@ -802,8 +816,34 @@ BP:	MOVE.L 		A1,-(A7)
 	NOP
 	NOP
 	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
 	SUB.L		#1,D7
 	BNE 		BP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
 	NOP
 	BREAK
 
