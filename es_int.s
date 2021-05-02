@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    INICIO1            * PC
+        DC.L    INICIO2            * PC
 
         ORG     $400
 
@@ -485,7 +485,8 @@ PRINTA:   MOVE.W 	    #2,D2
 WRITEBU:  CMP.W 	    #0,D3
 	  BEQ  		    WRITEE
 	  MOVE.B	    (A2),D1
-	  MOVE.B 	    #0,(A2)+
+	  *MOVE.B 	    #0,(A2)+
+          ADD.L             #1,A2
 	  LINK              A6,#-20
           MOVE.W            D4,-2(A6)                * Guardo contador  
           MOVE.W            D3,-4(A6)                * Guardo tamaño
@@ -761,7 +762,7 @@ OUT:    MOVE.W          #2000,-(A7)          * Tamaño de bloque
 
 
 **************************** FIN PROGRAMA PRINCIPAL ******************************************
-INICIO1: BSR             INIT            * Inicia el controlador
+INICIO2: BSR             INIT            * Inicia el controlador
 	MOVE 		#$2000,SR
 
 	MOVE.L 		#BUFFER,A1
@@ -778,75 +779,22 @@ BCP:	MOVE.B 		#'0',(A1)+
 	MOVE.B 		#'9',(A1)+	
 	SUB.L		#1,D7
 	BNE 		BCP
-	MOVE.L 		#6,D7
-	MOVE.L 		#$5000,A1
-BP:	MOVE.L 		A1,-(A7)
-	MOVE.W 		#500,-(A7)
-	MOVE.W 		#1,-(A7)
-	MOVE.L 		#$5000,-(A7)
-	BSR		PRINT
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	CMP.L 		#500,D0
-	BNE		ERRORP
-	ADD.L 		#8,A7
-	MOVE.L 		A1,-(A7)
-	MOVE.W 		#500,-(A7)
-	MOVE.W 		#0,-(A7)
+	MOVE.B          #60,D7
+
+CPAL:  	MOVE.B          D7,COUNT
+        MOVE.W 		#50,-(A7)
+        MOVE.W 		#1,-(A7)
 	MOVE.L 		#BUFFER,-(A7)
 	BSR		PRINT
-	ADD.L 		#8,A7
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	SUB.L		#1,D7
-	BNE 		BP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	NOP
-	BREAK
-
-        ERRORP:	NOP
-	BREAK
-	NOP
+        ADD.L           #8,A7
+        MOVE.L          #5000,D7
+WAIT2:  SUB             #1,D7
+        BNE             WAIT2
+        MOVE.B          COUNT,D7
+        SUB.B           #1,D7
+        BNE             CPAL
+        MOVE.W          COUNT,D1
+        BREAK
+COUNT:  DS.B            1   
+COUNT2:  DS.B           2   
+	
