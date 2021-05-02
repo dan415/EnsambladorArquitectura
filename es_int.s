@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    INICIO            * PC
+        DC.L    PPAL            * PC
 
         ORG     $400
 
@@ -60,6 +60,8 @@ DESA:   EQU     0            * Descriptor lı́nea A
 DESB:   EQU     1            * Descriptor lı́nea B
 TAMBS:  EQU     30           * Tamaño de bloque para SCAN
 TAMBP:  EQU     7            * Tamaño de bloque para PRINT
+
+PSEL:   DS.B     2           * Var de ppal para seleccionar puerto
 
 
 
@@ -415,8 +417,7 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
         MOVE.B         #%00000000,ACR      
         MOVE.B         #%00000101,CRA      
         MOVE.B         #%00000101,CRB 
-        MOVE.B         #%00100010,CIMR
-        MOVE.B         #%00100010,IMR      
+     
              
 
 
@@ -456,6 +457,8 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
         MOVE.B         #1,(A3)
         MOVE.B         #1,(A4)
 
+        MOVE.B         #%00100010,CIMR
+        MOVE.B         #%00100010,IMR 
         MOVE.W         #$2000,SR
         RTS
 **************************** FIN INIT *********************************************************
@@ -463,7 +466,7 @@ INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
 
 
 **************************** PRINT ************************************************************
-PRINT:    MOVE.L             4(A7),A2                  * Buffer
+PRINT:    MOVE.L            4(A7),A2                  * Buffer
           MOVE.W            8(A7),D2                  * Descriptor
           MOVE.W            10(A7),D3                 * Tamaño
           AND.W 	    #0,D4					  * Contador
@@ -475,9 +478,9 @@ PRINT:    MOVE.L             4(A7),A2                  * Buffer
 	  CMP.W		    #1,D2
 	  BNE 		    PFAIL
 	  MOVE.W 	    #3,D2
-	  MOVE.W     	    #16,D6					 	
+	  MOVE.W     	    #4,D6					 	
 	  BRA 		    WRITEBU
-PRINTA:   MOVE.W 	    #1,D2
+PRINTA:   MOVE.W 	    #2,D2
 	  AND.W 	    #0,D6					 	
 WRITEBU:  CMP.W 	    #0,D3
 	  BEQ  		    WRITEE
@@ -507,11 +510,14 @@ WRITEBU:  CMP.W 	    #0,D3
           ADD.W             #1,D4
           BRA               WRITEBU
 WRITEE:   MOVE.L            D4,D0
+          MOVE.B            CIMR,D3
 	  BSET		    D6,CIMR
 	  MOVE.B	    CIMR,D5
 	  MOVE.B 	    D5,IMR    
           RTS  
-PFAIL:    MOVE.L            #$FFFFFFFF,D0
+PFAIL:    MOVE.B         #%00100010,CIMR
+          MOVE.B         #%00100010,IMR 
+          MOVE.L         #$FFFFFFFF,D0
           RTS                                                     
 **************************** FIN PRINT ********************************************************
 
@@ -650,7 +656,7 @@ SFAIL:  MOVE.L          #$FFFFFFFF,D0
 **************************** FIN SCAN ************************************************************
 
 **************************** RTI **********************************************
-RTI:    LINK            A6,#-48
+RTI:    LINK            A6,#-56
         MOVE.L          D0,-4(A6)              
         MOVE.L          D1,-8(A6)              
         MOVE.L          D2,-12(A6)                
@@ -661,7 +667,9 @@ RTI:    LINK            A6,#-48
         MOVE.L          A2,-32(A6)             
         MOVE.L          A3,-36(A6)             
         MOVE.L          A4,-40(A6)             
-        MOVE.L          A5,-44(A6)             
+        MOVE.L          A5,-44(A6)   
+        MOVE.L          D6,-48(A6)             
+        MOVE.L          D7,-52(A6)                       
 
         MOVE.B          CIMR,D1
         MOVE.B          ISR,D2
@@ -672,20 +680,22 @@ RTI:    LINK            A6,#-48
         BNE             IBBR
         BTST            #0,D2                   * I viene de TAB
         BNE             IBAT                           
-        MOVE.L          #3,D0                   * I viene de TBB
-        BCLR            #4,CIMR
-        MOVE.B          CIMR,D5
-        MOVE.B          D5,IMR
+        MOVE.L          #3,D0                   * I viene de TBB              
+        MOVE.B          CIMR,D7
+        BCLR            #4,D7
         MOVE.L          #TBB,A5
 
 TRANS:  BSR             LEECAR
         CMP.L           #$FFFFFFFF,D0
-        BEQ             FINRTI
+        BEQ             TOFF
         MOVE.B          D0,(A5)
         BRA             FINRTI
 
 REC:    BSR             ESCCAR
+        BRA             FINRTI
 
+TOFF:   MOVE.B          D7,CIMR
+        MOVE.B          D7,IMR
 FINRTI: MOVE.L          -4(A6),D0           
         MOVE.L          -8(A6),D1             
         MOVE.L          -12(A6),D2                
@@ -696,17 +706,18 @@ FINRTI: MOVE.L          -4(A6),D0
         MOVE.L          -32(A6),A2
         MOVE.L          -36(A6),A3           
         MOVE.L          -40(A6),A4            
-        MOVE.L          -44(A6),A5                
-        UNLK            A6    
+        MOVE.L          -44(A6),A5      
+        MOVE.L          -48(A6),D6            
+        MOVE.L          -52(A6),D7        
+        UNLK             A6    
         RTE
 
 IBAR:   MOVE.B          #0,D0
         MOVE.B          RBA,D1
         BRA             REC
 
-IBAT:   BCLR            #0,CIMR
-        MOVE.B          CIMR,D5
-        MOVE.B          D5,IMR
+IBAT:   MOVE.B          CIMR,D7
+        BCLR            #0,D7   
         MOVE.B          #2,D0
         MOVE.L          #TBA,A5
         BRA             TRANS
@@ -718,5 +729,35 @@ IBBR:   MOVE.B          #1,D0
 **************************** FIN RTI ******************************************
 
 **************************** PROGRAMA PRINCIPAL **********************************************
+PPAL:   
+        BSR             INIT
+        MOVE.W          #0,PSEL
+BPAL:   MOVE.W          #0,D0
+        MOVE.B          CBAR,D2
+        MOVE.B          CBBR,D3
+        CMP.B           #1,D2
+        BNE             OUTA
+        CMP.B           #1,D3
+        BNE             OUTB
+        BRA             BPAL
+OUTA:   MOVE.W          #0,PSEL
+        BRA             OUT
+OUTB:   MOVE.W          #1,PSEL
+OUT:    MOVE.W          #2000,-(A7)          * Tamaño de bloque
+        MOVE.W          PSEL,-(A7)           * Puerto
+        MOVE.L          #BUFFER,-(A7)        * Dirección de lectura
+        BSR             SCAN
+        ADD.L           #8,A7                * Restablece la pila
+        MOVE.W          D0,-(A7)             * Tamaño de bloque
+        MOVE.W          PSEL,D1
+        NOT.W           D1
+        AND.W           #1,D1
+        MOVE.W          D1,PSEL
+        MOVE.W          D0,-(A7)
+        MOVE.W          PSEL,-(A7)           * Puerto
+        MOVE.L          #BUFFER,-(A7)        * Dirección de lectura
+        BSR             PRINT
+        BRA             BPAL
+
 
 **************************** FIN PROGRAMA PRINCIPAL ******************************************
