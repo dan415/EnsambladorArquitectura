@@ -386,6 +386,13 @@ FINBUC:  MOVE.W 		#2000,-(A7)
 		 MOVE.L 		#BUFFER,-(A7)
 		 BSR			PRINT
 		 BREAK
+
+
+	
+		 
+		 
+		 
+		 
 		 
 
 		 
