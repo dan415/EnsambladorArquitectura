@@ -2,7 +2,7 @@
 **************************
         ORG     $0
         DC.L    $8000           * Pila
-        DC.L    INICIO            * PC
+        DC.L    INICIO           * PC
 
         ORG     $400
 
@@ -61,42 +61,7 @@ DESB:   EQU     1            * Descriptor lı́nea B
 TAMBS:  EQU     30           * Tamaño de bloque para SCAN
 TAMBP:  EQU     7            * Tamaño de bloque para PRINT
 
-
-
-INICIO: 
-        BSR             INIT
-BUCPR:  MOVE.W          #TAMBS,PARTAM       * Inicializa parámetro de tamaño
-        MOVE.L          #BUFFER,PARDIR      * Parámetro BUFFER = comienzo del buffer
-OTRAL:  MOVE.W          PARTAM,-(A7)        * Tamaño de bloque
-        MOVE.W          #DESA,-(A7)         * Puerto A
-        MOVE.L          PARDIR,-(A7)        * Dirección de lectura
-ESPL:   BSR             SCAN
-        ADD.L           #8,A7               * Restablece la pila
-        ADD.L           D0,PARDIR           * Calcula la nueva dirección de lectura
-        SUB.W           D0,PARTAM           * Actualiza el número de caracteres leı́dos
-        BNE             OTRAL               * Si no se han leı́do todas los caracteres
-        MOVE.L          #BUFFER,A5
-                                            * del bloque se vuelve a leer
-        MOVE.W          #TAMBS,CONTC        * Inicializa contador de caracteres a imprimir
-        MOVE.L          #BUFFER,PARDIR      * Parámetro BUFFER = comienzo del buffer
-OTRAE:  MOVE.W          #TAMBP,PARTAM       * Tamaño de escritura = Tamaño de bloque
-ESPE:   MOVE.W          PARTAM,-(A7)        * Tamaño de escritura
-        MOVE.W          #DESB,-(A7)         * Puerto B
-        MOVE.L          PARDIR,-(A7)        * Dirección de escritura
-        BSR             PRINT
-        ADD.L           #8,A7               * Restablece la pila
-        ADD.L           D0,PARDIR           * Calcula la nueva dirección del buffer
-        SUB.W           D0,CONTC            * Actualiza el contador de caracteres
-        BEQ             SALIR               * Si no quedan caracteres se acaba
-        SUB.W           D0,PARTAM           * Actualiza el tamaño de escritura
-        BNE             ESPE                * Si no se ha escrito todo el bloque se insiste
-        CMP.W           #TAMBP,CONTC        * Si el n o de caracteres que quedan es menor que
-                                            * el tamaño establecido se imprime ese número
-        BHI             OTRAE               * Siguiente bloque
-        MOVE.W          CONTC,PARTAM        
-        BRA             ESPE                * Siguiente bloque
-SALIR:  BRA             BUCPR               
-
+PSEL:   DS.B     2           * Var de ppal para seleccionar puerto
 
 
 BUS_ERROR:              BREAK               * Bus error handler
@@ -112,6 +77,8 @@ PRIV_VIOLT:             BREAK               * Privilege violation handler
 
 * Casos de pruebas
 *********************************************************************************************
+
+**************************** Pruebas LEECAR ************************************************************  
 PLEE:   BSR             INIT
         LEA             BAR,A1
         LEA             CBAR,A4
@@ -143,9 +110,12 @@ PLEE2:  BSR             INIT               * leo pila vacia
         MOVE.B          #0,D0              * Descriptor param
         BSR             LEECAR
         BREAK
+**************************** Fin Pruebas LEECAR ************************************************************  
+
+**************************** Pruebas ESCCAR ************************************************************  
 		
 PESC: 	BSR 		INIT
-        LEA 		BBT,A1      
+        LEA 		BBR,A1      
         MOVE.L 		A1,D1
         ADD.L 		#8,D1
         MOVE.L 		D1,A2
@@ -154,7 +124,7 @@ PESC: 	BSR 		INIT
         MOVE.B 		#$53,(A2)+
         MOVE.L 		A2,$4(A1)
         MOVE.B 		#$41,D1
-        MOVE.B 		#3,D0
+        MOVE.B 		#1,D0
         BSR 		ESCCAR
         RTS
         BREAK
@@ -187,7 +157,9 @@ PESC3: 	BSR 		INIT            * escribo en pila llena (simulado)
         MOVE.L 		#1,D0
         BSR             ESCCAR
         BREAK
+**************************** Fin  Pruebas ESCCAR ************************************************************  
 
+**************************** Pruebas Conjuntas LEECAR ESCCAR ************************************************************  
 HITO1:  BSR             INIT     
         LEA             BBR,A5
         MOVE.W          #0,D5
@@ -295,6 +267,10 @@ NOWLE3: MOVE.B          #1,D0
         BSR             ESCCAR
         BREAK
 
+**************************** Fin Pruebas Conjuntas LEECAR ESCCAR ************************************************************  
+
+**************************** Pruebas SCAN ************************************************************  
+
 PSCAN1: BSR            PESC  
         MOVE.W         #4,-(A7)
         MOVE.W         #1,-(A7)
@@ -309,6 +285,7 @@ PSCAN2: BSR            PESC                 * tamaño mayor que lo que hay en bu
         BSR            SCAN
         BREAK
 
+
 PSCAN3: BSR            PESC                 * Descriptor erróneo
         MOVE.W         #1999,-(A7)
         MOVE.W         #2,-(A7)
@@ -316,211 +293,91 @@ PSCAN3: BSR            PESC                 * Descriptor erróneo
         BSR            SCAN
         BREAK
 
-PRTI:   BSR PESC
-        BSET #4,CIMR
-        BSET #4,IMR
-        ADD #2,D2
-        ADD #2,D2
+**************************** Fin pruebas SCAN ************************************************************  
+
+**************************** Pruebas RTI ************************************************************  
+
+PRTI:   BSR             PESC
+        BSET            #4,CIMR
+        BSET            #4,IMR
+        ADD             #2,D2
+        ADD             #2,D2
         BREAK
 
-PRTI2:  BSR INIT
-WAIT1:  BRA WAIT1
+
+PRTI2:  BSR             INIT
+WAIT1:  BRA             WAIT1
         BREAK
+
+**************************** Fin Pruebas RTI ************************************************************  
+
+**************************** Pruebas PRINT ************************************************************  
+
+
 		
-PPRINT1: BSR			INIT
-		 MOVE.W 		#0,-(A7)			* Prueba con Tamaño = 0
-		 MOVE.W 		#1,-(A7)
-		 MOVE.L 		#BUFFER,-(A7)
-		 BSR 			PRINT
-		 BREAK
+PPRINT1:BSR		INIT
+	MOVE.W 		#0,-(A7)			* Prueba con Tamaño = 0
+	MOVE.W 		#1,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR 		PRINT
+	BREAK
 
-PPRINT2: BSR 			INIT
-		 MOVE.L 		#BUFFER,A2			* Prueba Tamaño = 4
-         MOVE.B 		#$43,(A2)+
-		 MOVE.B 		#$41,(A2)+
-		 MOVE.B         #$41,(A2)+
-		 MOVE.B 		#$43,(A2)+
-		 MOVE.W 		#4,-(A7)
-		 MOVE.W 		#1,-(A7)
-		 MOVE.L 		#BUFFER,-(A7)
-		 BSR			PRINT
-		 BREAK
+PPRINT2:BSR 		INIT
+	MOVE.L 		#BUFFER,A2			* Prueba Tamaño = 4
+        MOVE.B 		#$43,(A2)+
+	MOVE.B 		#$41,(A2)+
+	MOVE.B          #$41,(A2)+
+	MOVE.B 		#$43,(A2)+
+	MOVE.W 		#4,-(A7)
+	MOVE.W 		#1,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR		PRINT
+	BREAK
 
-PPRINT3: BSR			INIT
-		 MOVE.L 		#BUFFER,A2			* Prueba con Error en Descriptor
-         MOVE.B 		#$43,(A2)+
-		 MOVE.B 		#$41,(A2)+
-		 MOVE.W 		#2,-(A7)
-		 MOVE.W 		#2,-(A7)
-		 MOVE.L 		#BUFFER,-(A7)
-		 BSR 			PRINT
-		 BREAK
-		 
-PPRINT4: BSR 			PESC				* Prueba Tamaño = 8, habiendo ya caracteres en Buffer Interno
-		 MOVE.B 		#0,D1
-         MOVE.L 		#BUFFER,A2
-         MOVE.B 		#$43,(A2)+
-		 MOVE.B 		#$41,(A2)+
-		 MOVE.B 		#$43,(A2)+
-		 MOVE.B 		#$41,(A2)+
-		 MOVE.B 		#$43,(A2)+
-		 MOVE.B 		#$41,(A2)+
-		 MOVE.B 		#$43,(A2)+
-		 MOVE.B 		#$41,(A2)+
-		 MOVE.W 		#8,-(A7)
-		 MOVE.W 		#1,-(A7)
-		 MOVE.L 		#BUFFER,-(A7)
-		 BSR 			PRINT
-		 BREAK
-		 
-PPRINT5: BSR			INIT
-		 MOVE.L 		#BUFFER,A2			* Prueba que llena el Buffer Interno
-		 MOVE.W 		#2000,D4
-BUC:     CMP.W			#0,D4
-		 BEQ 			FINBUC
-         MOVE.B 		#$43,(A2)+
-		 SUB.W 			#1,D4
-		 BRA 			BUC
-FINBUC:  MOVE.W 		#2000,-(A7)
-		 MOVE.W 		#0,-(A7)
-		 MOVE.L 		#BUFFER,-(A7)
-		 BSR			PRINT
-		 BREAK
-
-
-	
-		 
-		 
-		 
-		 
-		 
-
-		 
-
-
-
-**************************** INIT *************************************************************
-INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
-        MOVE.L          #ADDRESS_ER,12      * Address error handler
-        MOVE.L          #ILLEGAL_IN,16      * Illegal instruction handler
-        MOVE.L          #PRIV_VIOLT,32      * Privilege violation handler
-        MOVE.L          #ILLEGAL_IN,40      * Illegal instruction handler
-        MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
-        MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
-        MOVE.B          #64,$effc19
-        MOVE.L          #RTI,$100
-
-
-        MOVE.B         #%0001000,CRA      * Reinicia el puntero MR1
-        MOVE.B         #%00010000,CRB 
-        MOVE.B         #%00000011,MR1A     * 8 bits por caracter.
-        MOVE.B         #%00000011,MR1B     * 8 bits por caracter. 
-        MOVE.B         #%00000000,MR2A     * Eco desactivado.
-        MOVE.B         #%00000000,MR2B     * Eco desactivado. 
-        MOVE.B         #%11001100,CSRA     * Velocidad = 38400 bps.
-        MOVE.B         #%11001100,CSRB     * Velocidad = 38400 bps.
-        MOVE.B         #%00000000,ACR      
-        MOVE.B         #%00000101,CRA      
-        MOVE.B         #%00000101,CRB 
-        MOVE.B         #%00100010,CIMR
-        MOVE.B         #%00100010,IMR      
-             
-
-
-        LEA            BAR,A1              * Cargo dirs de buffers
-        LEA            BAT,A2
-        LEA            BBR,A3
-        LEA            BBT,A4
-                                            * Procedo a inicializar punteros a principio y final de pila, de momento esta vacia
-                                            * asi que principio = final
-        MOVE.L          A1,D1               
-        ADD.L           #8,D1               * D1 <-A1+8  
-        MOVE.L          D1,(A1)             * M(A1) <-A1+8
-        MOVE.L          D1,$4(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
-
-        MOVE.L          A2,D1               
-        ADD.L           #8,D1              
-        MOVE.L          D1,(A2)            
-        MOVE.L          D1,$4(A2)    
-
-        MOVE.L          A3,D1               
-        ADD.L           #8,D1              
-        MOVE.L          D1,(A3)            
-        MOVE.L          D1,$4(A3)    
+PPRINT3:BSR		INIT
+	MOVE.L 		#BUFFER,A2			* Prueba con Error en Descriptor
+        MOVE.B 		#$43,(A2)+
+        MOVE.B 		#$41,(A2)+
+        MOVE.W 		#2,-(A7)
+        MOVE.W 		#2,-(A7)
+        MOVE.L 		#BUFFER,-(A7)
+        BSR 		PRINT
+        BREAK
         
-        MOVE.L          A4,D1               
-        ADD.L           #8,D1              
-        MOVE.L          D1,(A4)            
-        MOVE.L          D1,$4(A4)  
+PPRINT4:BSR 	        PESC				* Prueba Tamaño = 8, habiendo ya caracteres en Buffer Interno
+        MOVE.B 		#0,D1
+        MOVE.L 		#BUFFER,A2
+        MOVE.B 		#$43,(A2)+
+        MOVE.B 		#$41,(A2)+
+        MOVE.B 		#$43,(A2)+
+        MOVE.B 		#$41,(A2)+
+        MOVE.B 		#$43,(A2)+
+        MOVE.B 		#$41,(A2)+
+        MOVE.B 		#$43,(A2)+
+        MOVE.B 		#$41,(A2)+
+        MOVE.W 		#8,-(A7)
+        MOVE.W 		#1,-(A7)
+        MOVE.L 		#BUFFER,-(A7)
+        BSR 		PRINT
+        BREAK
+		 
+PPRINT5:BSR		INIT
+        MOVE.L 		#BUFFER,A2			* Prueba que llena el Buffer Interno
+        MOVE.W 		#2000,D4
+BUC:    CMP.W		#0,D4
+        BEQ 		FINBUC
+        MOVE.B 		#$43,(A2)+
+        SUB.W 		#1,D4
+        BRA 		BUC
+FINBUC: MOVE.W 		#2000,-(A7)
+        MOVE.W 		#0,-(A7)
+        MOVE.L 		#BUFFER,-(A7)
+        BSR		PRINT
+        BREAK
 
-        LEA             CBAR,A1              * Cargo dirs de buffers
-        LEA             CBAT,A2
-        LEA             CBBR,A3
-        LEA             CBBT,A4
+ **************************** Fin pruebas PRINT ************************************************************   
+ **************************** Fin casos de prueba ************************************************************                
 
-        MOVE.B          #1,(A1)             * Pongo a 1 las vars de control de buffer
-        MOVE.B          #1,(A2)
-        MOVE.B          #1,(A3)
-        MOVE.B          #1,(A4)
-
-        MOVE.W          #$2000,SR
-        RTS
-**************************** FIN INIT *********************************************************
-
-
-
-**************************** PRINT ************************************************************
-PRINT:    MOVE.L          	4(A7),A2                  * Buffer
-          MOVE.W          	8(A7),D2                  * Descriptor
-          MOVE.W          	10(A7),D3                 * Tamaño
-		  AND.W 			#0,D4					  * Contador
-	      CMP.W  			#0,D3
-	      BLT 			   	PFAIL
-		  BEQ				WRITEE
-	      CMP.W		   		#0,D2
-	      BEQ 			   	PRINTA
-	      CMP.W		   		#1,D2
-	      BNE 			   	PFAIL
-	      MOVE.W 		   	#3,D2
-	      MOVE.W     		#16,D6					 	
-	      BRA 			   	WRITEBU
-PRINTA:   MOVE.W 			#1,D2
-		  AND.W 			#0,D6					 	
-WRITEBU:  CMP.W 			#0,D3
-		  BEQ  				WRITEE
-		  MOVE.B			(A2),D1
-		  MOVE.B 			#0,(A2)+
-		  LINK              A6,#-20
-          MOVE.W            D4,-2(A6)                * Guardo contador  
-          MOVE.W            D3,-4(A6)                * Guardo tamaño
-          MOVE.L            A2,-8(A6)               * Guardo buffer 
-		  MOVE.W			D6,-12(A6)				 * Guardo bit IMR
-		  MOVE.B 			D1,-14(A6)				 * Guardo Caracter
-		  MOVE.W 			D2,-18(A6)				 * Guardo Descriptor
-          AND.L             #0,D0
-          OR.L              D2,D0
-		  BSR 				ESCCAR
-		  AND.L             #0,D4                   * Necesito una suma con L y no puede haber basura en D4
-		  MOVE.W 			-18(A6),D2
-		  MOVE.B 			-14(A6),D1
-		  MOVE.W 			-12(A6),D6
-          MOVE.L            -8(A6),A2
-          MOVE.W            -4(A6),D3
-          MOVE.W            -2(A6),D4
-          UNLK              A6
-          CMP.L             #$FFFFFFFF,D0
-          BEQ               WRITEE
-          SUB.W             #1,D3        
-          ADD.W             #1,D4
-          BRA               WRITEBU
-WRITEE:   MOVE.L            D4,D0
-		  BSET				D6,CIMR
-		  MOVE.B			CIMR,D5
-		  MOVE.B 			D5,IMR    
-          RTS  
-PFAIL:    MOVE.L            #$FFFFFFFF,D0
-          RTS                                                     
-**************************** FIN PRINT ********************************************************
 
 
 
@@ -614,9 +471,11 @@ ENDE:	RTS
 
 
 **************************** SCAN ************************************************************
-SCAN:   MOVE.L          4(A7),A1                  * Buffer
-        MOVE.W          8(A7),D2                  * Descriptor
-        MOVE.W          10(A7),D3                 * Tamaño
+SCAN:   LINK            A6,#-12
+        MOVE.L          8(A6),A1                  * Buffer
+        MOVE.W          12(A6),D2                  * Descriptor
+        MOVE.W          14(A6),D3                 * Tamaño
+        AND.W           #0,D4                    * Contador 
         CMP             #0,D3
         BLT             SFAIL
         CMP.W           #0,D2
@@ -626,9 +485,8 @@ SCAN:   MOVE.L          4(A7),A1                  * Buffer
         MOVE.L          BBR,A2
         BRA             READBU
 SCANA:  MOVE.L          BAR,A2
-        AND.W           #0,D4                    * Contador 
 READBU: CMP.W           #0,D3
-        LINK            A6,#-14
+        BEQ             SCANE
         MOVE.W          D4,-2(A6)                * Guardo contador  
         MOVE.W          D3,-4(A6)                * Guardo tamaño
         MOVE.L          A2,-8(A6)                * Guardo buffer
@@ -636,28 +494,84 @@ READBU: CMP.W           #0,D3
         AND.L           #0,D0
         OR.L            D2,D0
         BSR             LEECAR
+        CMP.L           #$FFFFFFFF,D0
+        BEQ             SCANE
         AND.L           #0,D4                   * Necesito una suma con L y no puede haber basura en D4
         MOVE.L          -12(A6),A1
         MOVE.L          -8(A6),A2
         MOVE.W          -4(A6),D3
         MOVE.W          -2(A6),D4
-        UNLK            A6
-        CMP.L           #$FFFFFFFF,D0
-        BEQ             SCANE
         SUB.W           #1,D3
         MOVE.L          A1,A3
         ADD.L           D4,A3                   * Posicion del buffer  
         MOVE.B          D0,(A3)         
         ADD.W           #1,D4
         BRA             READBU
-SCANE:  MOVE.L          D4,D0    
-        RTS
+SCANE:  MOVE.L          D4,D0
+        BRA             FINSCAN
 SFAIL:  MOVE.L          #$FFFFFFFF,D0
+FINSCAN:UNLK            A6
         RTS
 **************************** FIN SCAN ************************************************************
 
+**************************** PRINT ************************************************************
+
+PRINT:    LINK              A6,#-18
+          MOVE.L            8(A6),A2                  * Buffer
+          MOVE.W            12(A6),D2                  * Descriptor
+          MOVE.W            14(A6),D3                 * Tamaño
+          AND.W 	    #0,D4					  * Contador
+          CMP.W  	    #0,D3
+	  BLT 		    PFAIL
+	  BEQ		    WRITEE
+	  CMP.W		    #0,D2
+          BEQ 		    PRINTA
+	  CMP.W		    #1,D2
+	  BNE 		    PFAIL
+	  MOVE.W 	    #3,D2
+	  MOVE.W     	    #4,D6					 	
+	  BRA 		    WRITEBU
+PRINTA:   MOVE.W 	    #2,D2
+	  AND.W 	    #0,D6					 	
+WRITEBU:  CMP.W 	    #0,D3
+	  BEQ  		    WRITEE
+	  MOVE.B	    (A2),D1
+	  *MOVE.B 	    #0,(A2)                * En caso de que se quiera eliminar los caracteres leídos
+          ADD.L             #1,A2                   * del buffer, en principio este no es el caso deseado
+          MOVE.W            D4,-2(A6)                * Guardo contador  
+          MOVE.W            D3,-4(A6)                * Guardo tamaño
+          MOVE.L            A2,-8(A6)               * Guardo buffer 
+	  MOVE.W	    D6,-12(A6)				 * Guardo bit IMR
+	  MOVE.B 	    D1,-14(A6)				 * Guardo Caracter
+	  MOVE.W 	    D2,-18(A6)				 * Guardo Descriptor
+          AND.L             #0,D0
+          OR.L              D2,D0
+          BSR 		    ESCCAR
+          AND.L             #0,D4                   * Necesito una suma con L y no puede haber basura en D4
+          MOVE.W 	    -18(A6),D2
+          MOVE.B            -14(A6),D1
+          MOVE.W 	    -12(A6),D6
+          MOVE.L            -8(A6),A2
+          MOVE.W            -4(A6),D3
+          MOVE.W            -2(A6),D4
+          CMP.L             #$FFFFFFFF,D0
+          BEQ               WRITEE
+          SUB.W             #1,D3        
+          ADD.W             #1,D4
+          BRA               WRITEBU
+WRITEE:   MOVE.L            D4,D0
+          MOVE.B            CIMR,D3
+	  BSET		    D6,CIMR
+	  MOVE.B	    CIMR,D5
+	  MOVE.B 	    D5,IMR    
+          BRA               FINPRINT
+PFAIL:    MOVE.L            #$FFFFFFFF,D0
+FINPRINT: UNLK              A6
+          RTS                                                     
+**************************** FIN PRINT ********************************************************
+
 **************************** RTI **********************************************
-RTI:    LINK            A6,#-48
+RTI:    LINK            A6,#-52
         MOVE.L          D0,-4(A6)              
         MOVE.L          D1,-8(A6)              
         MOVE.L          D2,-12(A6)                
@@ -668,7 +582,9 @@ RTI:    LINK            A6,#-48
         MOVE.L          A2,-32(A6)             
         MOVE.L          A3,-36(A6)             
         MOVE.L          A4,-40(A6)             
-        MOVE.L          A5,-44(A6)             
+        MOVE.L          A5,-44(A6)   
+        MOVE.L          D6,-48(A6)             
+        MOVE.L          D7,-52(A6)                       
 
         MOVE.B          CIMR,D1
         MOVE.B          ISR,D2
@@ -679,20 +595,22 @@ RTI:    LINK            A6,#-48
         BNE             IBBR
         BTST            #0,D2                   * I viene de TAB
         BNE             IBAT                           
-        MOVE.L          #3,D0                   * I viene de TBB
-        BCLR            #4,CIMR
-        MOVE.B          CIMR,D5
-        MOVE.B          D5,IMR
+        MOVE.L          #3,D0                   * I viene de TBB              
+        MOVE.B          CIMR,D7
+        BCLR            #4,D7
         MOVE.L          #TBB,A5
 
 TRANS:  BSR             LEECAR
         CMP.L           #$FFFFFFFF,D0
-        BEQ             FINRTI
+        BEQ             TOFF
         MOVE.B          D0,(A5)
         BRA             FINRTI
 
 REC:    BSR             ESCCAR
+        BRA             FINRTI
 
+TOFF:   MOVE.B          D7,CIMR
+        MOVE.B          D7,IMR
 FINRTI: MOVE.L          -4(A6),D0           
         MOVE.L          -8(A6),D1             
         MOVE.L          -12(A6),D2                
@@ -703,17 +621,18 @@ FINRTI: MOVE.L          -4(A6),D0
         MOVE.L          -32(A6),A2
         MOVE.L          -36(A6),A3           
         MOVE.L          -40(A6),A4            
-        MOVE.L          -44(A6),A5                
-        UNLK            A6    
+        MOVE.L          -44(A6),A5      
+        MOVE.L          -48(A6),D6            
+        MOVE.L          -52(A6),D7        
+        UNLK             A6    
         RTE
 
 IBAR:   MOVE.B          #0,D0
         MOVE.B          RBA,D1
         BRA             REC
 
-IBAT:   BCLR            #0,CIMR
-        MOVE.B          CIMR,D5
-        MOVE.B          D5,IMR
+IBAT:   MOVE.B          CIMR,D7
+        BCLR            #0,D7   
         MOVE.B          #2,D0
         MOVE.L          #TBA,A5
         BRA             TRANS
@@ -725,5 +644,315 @@ IBBR:   MOVE.B          #1,D0
 **************************** FIN RTI ******************************************
 
 **************************** PROGRAMA PRINCIPAL **********************************************
+PPAL:   
+        BSR             INIT
+        MOVE.W          #0,PSEL
+BPAL:   MOVE.W          #0,D0
+        MOVE.B          CBAR,D2
+        MOVE.B          CBBR,D3
+        CMP.B           #1,D2
+        BNE             OUTA
+        CMP.B           #1,D3
+        BNE             OUTB
+        BRA             BPAL
+OUTA:   MOVE.W          #0,PSEL
+        BRA             OUT
+OUTB:   MOVE.W          #1,PSEL
+OUT:    MOVE.W          #2000,-(A7)          * Tamaño de bloque
+        MOVE.W          PSEL,-(A7)           * Puerto
+        MOVE.L          #BUFFER,-(A7)        * Dirección de lectura
+        BSR             SCAN
+        ADD.L           #8,A7                * Restablece la pila
+        MOVE.W          D0,-(A7)             * Tamaño de bloque
+        MOVE.W          PSEL,D1
+        NOT.W           D1
+        AND.W           #1,D1
+        MOVE.W          D1,PSEL
+        MOVE.W          D0,-(A7)
+        MOVE.W          PSEL,-(A7)           * Puerto
+        MOVE.L          #BUFFER,-(A7)        * Dirección de lectura
+        BSR             PRINT
+        BRA             BPAL
+
 
 **************************** FIN PROGRAMA PRINCIPAL ******************************************
+
+**************************** INIT *************************************************************
+INIT:   MOVE.L          #BUS_ERROR,8        * Bus error handler
+        MOVE.L          #ADDRESS_ER,12      * Address error handler
+        MOVE.L          #ILLEGAL_IN,16      * Illegal instruction handler
+        MOVE.L          #PRIV_VIOLT,32      * Privilege violation handler
+        MOVE.L          #ILLEGAL_IN,40      * Illegal instruction handler
+        MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
+        MOVE.L          #ILLEGAL_IN,44      * Illegal instruction handler
+        MOVE.B          #64,$effc19
+        MOVE.L          #RTI,$100
+
+
+        MOVE.B         #%0001000,CRA      * Reinicia el puntero MR1
+        MOVE.B         #%00010000,CRB 
+        MOVE.B         #%00000011,MR1A     * 8 bits por caracter.
+        MOVE.B         #%00000011,MR1B     * 8 bits por caracter. 
+        MOVE.B         #%00000000,MR2A     * Eco desactivado.
+        MOVE.B         #%00000000,MR2B     * Eco desactivado. 
+        MOVE.B         #%11001100,CSRA     * Velocidad = 38400 bps.
+        MOVE.B         #%11001100,CSRB     * Velocidad = 38400 bps.
+        MOVE.B         #%00000000,ACR      
+        MOVE.B         #%00000101,CRA      
+        MOVE.B         #%00000101,CRB 
+     
+        LEA            BAR,A1              * Cargo dirs de buffers
+        LEA            BAT,A2
+        LEA            BBR,A3
+        LEA            BBT,A4
+                                            * Procedo a inicializar punteros a principio y final de pila, de momento esta vacia
+                                            * asi que principio = final
+        MOVE.L         A1,D1               
+        ADD.L          #8,D1               * D1 <-A1+8  
+        MOVE.L         D1,(A1)             * M(A1) <-A1+8
+        MOVE.L         D1,$4(A1)           * M(A1+2) <-A1+8 (El desplazamiento es a palabras 16b=1W; 2*16b=4B=1L)
+
+        MOVE.L         A2,D1               
+        ADD.L          #8,D1              
+        MOVE.L         D1,(A2)            
+        MOVE.L         D1,$4(A2)    
+
+        MOVE.L         A3,D1               
+        ADD.L          #8,D1              
+        MOVE.L         D1,(A3)            
+        MOVE.L         D1,$4(A3)    
+        
+        MOVE.L         A4,D1               
+        ADD.L          #8,D1              
+        MOVE.L         D1,(A4)            
+        MOVE.L         D1,$4(A4)  
+
+        LEA            CBAR,A1              * Cargo dirs de buffers
+        LEA            CBAT,A2
+        LEA            CBBR,A3
+        LEA            CBBT,A4
+
+        MOVE.B         #1,(A1)             * Pongo a 1 las vars de control de buffer
+        MOVE.B         #1,(A2)
+        MOVE.B         #1,(A3)
+        MOVE.B         #1,(A4)
+
+        MOVE.B         #%00100010,CIMR
+        MOVE.B         #%00100010,IMR 
+        MOVE.W         #$2000,SR
+        RTS
+**************************** FIN INIT *********************************************************
+
+  
+
+INICIO: 
+        BSR             INIT
+BUCPR:  MOVE.W          #TAMBS,PARTAM       * Inicializa parámetro de tamaño
+        MOVE.L          #BUFFER,PARDIR      * Parámetro BUFFER = comienzo del buffer
+OTRAL:  MOVE.W          PARTAM,-(A7)        * Tamaño de bloque
+        MOVE.W          #DESA,-(A7)         * Puerto A
+        MOVE.L          PARDIR,-(A7)        * Dirección de lectura
+ESPL:   BSR             SCAN
+        ADD.L           #8,A7               * Restablece la pila
+        ADD.L           D0,PARDIR           * Calcula la nueva dirección de lectura
+        SUB.W           D0,PARTAM           * Actualiza el número de caracteres leı́dos
+        BNE             OTRAL               * Si no se han leı́do todas los caracteres
+        MOVE.L          #BUFFER,A5
+                                            * del bloque se vuelve a leer
+        MOVE.W          #TAMBS,CONTC        * Inicializa contador de caracteres a imprimir
+        MOVE.L          #BUFFER,PARDIR      * Parámetro BUFFER = comienzo del buffer
+OTRAE:  MOVE.W          #TAMBP,PARTAM       * Tamaño de escritura = Tamaño de bloque
+ESPE:   MOVE.W          PARTAM,-(A7)        * Tamaño de escritura
+        MOVE.W          #DESB,-(A7)         * Puerto B
+        MOVE.L          PARDIR,-(A7)        * Dirección de escritura
+        BSR             PRINT
+        ADD.L           #8,A7               * Restablece la pila
+        ADD.L           D0,PARDIR           * Calcula la nueva dirección del buffer
+        SUB.W           D0,CONTC            * Actualiza el contador de caracteres
+        BEQ             SALIR               * Si no quedan caracteres se acaba
+        SUB.W           D0,PARTAM           * Actualiza el tamaño de escritura
+        BNE             ESPE                * Si no se ha escrito todo el bloque se insiste
+        CMP.W           #TAMBP,CONTC        * Si el n o de caracteres que quedan es menor que
+                                            * el tamaño establecido se imprime ese número
+        BHI             OTRAE               * Siguiente bloque
+        MOVE.W          CONTC,PARTAM        
+        BRA             ESPE                * Siguiente bloque
+SALIR:  BRA             BUCPR               
+
+
+
+CPAL:  	MOVE.B          D7,COUNT
+        MOVE.W 		#50,-(A7)
+        MOVE.W 		#1,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR		PRINT
+        ADD.L           #8,A7
+        MOVE.L          #5000,D7
+WAIT2:  SUB             #1,D7
+        BNE             WAIT2
+        MOVE.B          COUNT,D7
+        SUB.B           #1,D7
+        BNE             CPAL
+        MOVE.B          #60,D7
+DPAL:  	MOVE.B          D7,COUNT
+        MOVE.W 		#50,-(A7)
+        MOVE.W 		#0,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR		PRINT
+        ADD.L           #8,A7
+        MOVE.L          #5000,D7
+WAITD:  SUB             #1,D7
+        BNE             WAITD
+        MOVE.B          COUNT,D7
+        SUB.B           #1,D7
+        BNE             DPAL
+
+INICIO3: BSR             INIT            * Inicia el controlador
+S:	MOVE.W 		#10,-(A7)
+	MOVE.W 		#1,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR 		SCAN
+	ADD.L 		#8,A7
+	MOVE.W 		D0,-(A7)
+	MOVE.W 		#0,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR 		PRINT
+	ADD.L 		#8,A7
+	MOVE.W 		#10,-(A7)
+	MOVE.W 		#0,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR 		SCAN
+	ADD.L 		#8,A7
+	MOVE.W 		D0,-(A7)
+	MOVE.W 		#1,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR 		PRINT
+	ADD.L 		#8,A7	
+	BRA 		S
+	NOP
+	NOP
+	NOP
+		BREAK
+        
+        BREAK
+COUNT:  DS.B            1   
+
+INICIO4: BSR             INIT            * Inicia el controlador
+	MOVE.L 		#BUFFER,A1
+	MOVE.L 		#50,D7
+BCP:	MOVE.B 		#'0',(A1)+	
+	MOVE.B 		#'1',(A1)+	
+	MOVE.B 		#'2',(A1)+	
+	MOVE.B 		#'3',(A1)+	
+	MOVE.B 		#'4',(A1)+	
+	MOVE.B 		#'5',(A1)+	
+	MOVE.B 		#'6',(A1)+	
+	MOVE.B 		#'7',(A1)+	
+	MOVE.B 		#'8',(A1)+	
+	MOVE.B 		#'9',(A1)+	
+	SUB.L		#1,D7
+	BNE 		BCP
+        MOVE.L          #6,D5
+BP:	CMP.L           #0,D5
+        BEQ             M
+        MOVE.L          D5,-(A7)        
+        MOVE.W 		#500,-(A7)
+	MOVE.W 		#1,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	*BSR		PRINT
+        ADD.L 		#8,A7
+ESP1:   MOVE.B          ISR,D7
+        MOVE.B          CIMR,D6
+        AND.B           D6,D7
+        CMP.L            #0,D7
+	BNE		ESP1
+	MOVE.W 		#500,-(A7)
+	MOVE.W 		#0,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR		PRINT
+	ADD.L 		#8,A7
+ESP2:   MOVE.B          ISR,D7
+        MOVE.B          CIMR,D6
+        AND.B           D6,D7
+        CMP.L            #0,D7
+	BNE		ESP2
+        MOVE.L          (A7)+,D5
+        SUB.L           #1,D5
+        BRA             BP
+M:	BREAK
+ 
+INICIO5: BSR             INIT            * Inicia el controlador
+	MOVE.L 		#BUFFER,A1
+	MOVE.L 		#50,D7
+BCPP:	MOVE.B 		#'0',(A1)+	
+	MOVE.B 		#'1',(A1)+	
+	MOVE.B 		#'2',(A1)+	
+	MOVE.B 		#'3',(A1)+	
+	MOVE.B 		#'4',(A1)+	
+	MOVE.B 		#'5',(A1)+	
+	MOVE.B 		#'6',(A1)+	
+	MOVE.B 		#'7',(A1)+	
+	MOVE.B 		#'8',(A1)+	
+	MOVE.B 		#'9',(A1)+	
+	SUB.L		#1,D7
+	BNE 		BCPP
+	MOVE.L 		#6,D7
+	MOVE.L 		#BUFFER,A1
+BPP:	MOVE.L 		A1,-(A7)
+	MOVE.W 		#500,-(A7)
+	MOVE.W 		#0,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR		PRINT
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	CMP.L 		#500,D0
+	BNE		ERRORPP
+	ADD.L 		#8,A7
+	MOVE.L 		A1,-(A7)
+	MOVE.W 		#500,-(A7)
+	MOVE.W 		#1,-(A7)
+	MOVE.L 		#BUFFER,-(A7)
+	BSR		PRINT
+	ADD.L 		#8,A7
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	CMP.L 		#500,D0
+	BNE		ERRORPP
+	SUB.L		#1,D7
+	BNE 		BPP
+	MOVE.L 		#6,D7
+	NOP
+RTIBB:	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	NOP
+	BRA 		RTIBB
+	NOP
+	BREAK
+	NOP
+	NOP
+	NOP
+ERRORPP:	NOP
+	BREAK
+	NOP
+	
